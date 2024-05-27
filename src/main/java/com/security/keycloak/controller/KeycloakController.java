@@ -64,7 +64,7 @@ public class KeycloakController {
         return ResponseEntity.ok("User deleted successfully");
     }
 
-    @PreAuthorize("hasRole('user_client')")
+    @PreAuthorize("hasRole('user_client') or hasRole('admin_client')")
     @GetMapping("/getCurrentUser")
     public UserResponse obtenerUsername(@RequestHeader("Authorization") String authorizationHeader) throws NoSuchAlgorithmException, InvalidKeySpecException {
         return authService.getCurrentUser(authorizationHeader);
