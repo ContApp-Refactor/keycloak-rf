@@ -10,13 +10,48 @@
     "description": "A description for 'jwt.auth.converter.principle-attribute'"
   },
   {
-    "name": "jwt.secret",
-    "type": "java.lang.String",
-    "description": "A description for 'jwt.secret'"
-  },
-  {
     "name": "jwt.public.key",
     "type": "java.lang.String",
     "description": "A description for 'jwt.public.key'"
+  },
+  {
+    "name": "jwt.token.url",
+    "type": "java.lang.String",
+    "description": "A description for 'jwt.token.url'"
+  },
+  {
+    "name": "keycloak.server.url",
+    "type": "java.lang.String",
+    "description": "A description for 'keycloak.server.url'"
+  },
+  {
+    "name": "keycloak.realm.name",
+    "type": "java.lang.String",
+    "description": "A description for 'keycloak.realm.name'"
+  },
+  {
+    "name": "keycloak.realm.master",
+    "type": "java.lang.String",
+    "description": "A description for 'keycloak.realm.master'"
+  },
+  {
+    "name": "keycloak.admin",
+    "type": "java.lang.String",
+    "description": "A description for 'keycloak.admin'"
+  },
+  {
+    "name": "keycloak.password",
+    "type": "java.lang.String",
+    "description": "A description for 'keycloak.password'"
+  },
+  {
+    "name": "keycloak.client.secret",
+    "type": "java.lang.String",
+    "description": "A description for 'keycloak.client.secret'"
+  },
+  {
+    "name": "keycloak.user.console",
+    "type": "java.lang.String",
+    "description": "A description for 'keycloak.user.console'"
   }
 ]}

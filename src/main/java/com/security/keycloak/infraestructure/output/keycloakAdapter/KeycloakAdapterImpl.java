@@ -1,4 +1,4 @@
-package com.security.keycloak.service.impl;
+package com.security.keycloak.infraestructure.output.keycloakAdapter;
 
 import java.util.List;
 
@@ -9,12 +9,13 @@ import org.keycloak.admin.client.resource.UsersResource;
 import org.keycloak.representations.idm.CredentialRepresentation;
 import org.keycloak.representations.idm.RoleRepresentation;
 import org.keycloak.representations.idm.UserRepresentation;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
-import com.security.keycloak.dto.UserDTO;
-import com.security.keycloak.dto.UserResponse;
-import com.security.keycloak.service.IKeycloakService;
-import com.security.keycloak.util.KeycloakProvider;
+import com.security.keycloak.application.input.IRealmResourceInputPort;
+import com.security.keycloak.application.output.IKeycloakOutputPort;
+import com.security.keycloak.domain.models.User;
+import com.security.keycloak.infraestructure.input.rest.data.response.UserResponse;
 
 import jakarta.ws.rs.core.Response;
 import lombok.NonNull;
@@ -22,7 +23,10 @@ import lombok.extern.slf4j.Slf4j;
 
 @Service
 @Slf4j
-public class KeycloakServiceImpl implements IKeycloakService{
+public class KeycloakAdapterImpl implements IKeycloakOutputPort{
+
+    @Autowired
+    private IRealmResourceInputPort realmResourceInputPort;
 
     /**
      * Metodo para obtener todos los usuarios de Keycloak
@@ -30,12 +34,12 @@ public class KeycloakServiceImpl implements IKeycloakService{
      */
     @Override
     public List<UserResponse> findAllUsers() {
-        return KeycloakProvider.getRealmResource()
+        return realmResourceInputPort.getRealmResource()
             .users()
             .list()
             .stream()
             .map(user -> {
-                List<RoleRepresentation> roles = KeycloakProvider.getRealmResource()
+                List<RoleRepresentation> roles = realmResourceInputPort.getRealmResource()
                     .users()
                     .get(user.getId())
                     .roles()
@@ -64,12 +68,12 @@ public class KeycloakServiceImpl implements IKeycloakService{
     @Override
     public List<UserResponse> findUserByUsername(String username) {
 
-        return KeycloakProvider.getRealmResource()
+        return realmResourceInputPort.getRealmResource()
             .users()
             .search(username)
             .stream()
             .map(user -> {
-                List<RoleRepresentation> roles = KeycloakProvider.getRealmResource()
+                List<RoleRepresentation> roles = realmResourceInputPort.getRealmResource()
                     .users()
                     .get(user.getId())
                     .roles()
@@ -94,9 +98,9 @@ public class KeycloakServiceImpl implements IKeycloakService{
      * @return String
      */
     @Override
-    public String createUser(@NonNull UserDTO userDTO) {
+    public String createUser(@NonNull User userDTO) {
         int status = 0;
-        UsersResource usersResource = KeycloakProvider.getUserResource();
+        UsersResource usersResource = realmResourceInputPort.getUserResource();
 
         UserRepresentation user = new UserRepresentation();
 
@@ -121,12 +125,12 @@ public class KeycloakServiceImpl implements IKeycloakService{
 
             usersResource.get(userId).resetPassword(credentialRepresentation);
 
-            RealmResource realmResource = KeycloakProvider.getRealmResource();
+            RealmResource realmResource = realmResourceInputPort.getRealmResource();
 
             List<RoleRepresentation> roles = null;
 
             if(userDTO.getRoles() == null || userDTO.getRoles().isEmpty()) {
-                roles = List.of(realmResource.roles().get("user").toRepresentation());       
+                roles = List.of(realmResource.roles().get("user_realm").toRepresentation());       
             }else{
                 roles = realmResource
                     .roles()
@@ -161,7 +165,7 @@ public class KeycloakServiceImpl implements IKeycloakService{
      */
     @Override
     public void deleteUser(String userId) {
-        KeycloakProvider.getUserResource()
+        realmResourceInputPort.getUserResource()
             .get(userId)
             .remove();
     }
@@ -172,7 +176,7 @@ public class KeycloakServiceImpl implements IKeycloakService{
      * @param userDTO datos del usuario
      */
     @Override
-    public void updateUser(String userId,@NonNull UserDTO userDTO) {
+    public void updateUser(String userId,@NonNull User userDTO) {
         
         CredentialRepresentation credentialRepresentation = new CredentialRepresentation();
         credentialRepresentation.setTemporary(false);
@@ -189,7 +193,7 @@ public class KeycloakServiceImpl implements IKeycloakService{
         user.setEmailVerified(true);
         user.setCredentials(List.of(credentialRepresentation));
 
-        UserResource userResource = KeycloakProvider.getUserResource().get(userId);
+        UserResource userResource = realmResourceInputPort.getUserResource().get(userId);
         userResource.update(user);
     }
 }

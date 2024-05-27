@@ -1,27 +1,22 @@
-package com.security.keycloak.dto;
+package com.security.keycloak.domain.models;
 
 import java.util.List;
 
-import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
-import lombok.NoArgsConstructor;
 import lombok.Setter;
 
-
-@AllArgsConstructor
 @Getter
 @Setter
 @Builder
-@NoArgsConstructor
-public class UserResponse{
-
+public class User {
+    
     String id;
     String username;
     String email;
     String firstName;
     String lastName;
+    String password;
 
     List<String> roles;
-
 }

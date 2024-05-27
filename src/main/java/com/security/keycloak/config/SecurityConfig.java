@@ -24,9 +24,10 @@ public class SecurityConfig {
     SecurityFilterChain securityFilterChain(HttpSecurity httpSecurity) throws Exception {
         return httpSecurity
                 .csrf(csrf -> csrf.disable())
-                .authorizeHttpRequests(http -> {
-                    http.anyRequest().authenticated();
-                })
+                .authorizeHttpRequests(http -> http
+                    .requestMatchers("/keycloak/**","/swagger-ui/**","/v3/api-docs/**").permitAll()
+                    .anyRequest()
+                    .authenticated())
                 .oauth2ResourceServer(oauth -> {
                     oauth.jwt(jwt -> jwt.jwtAuthenticationConverter(jwtAuthConverter));
                 })

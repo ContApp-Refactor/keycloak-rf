@@ -1,4 +1,4 @@
-package com.security.keycloak.controller;
+package com.security.keycloak.infraestructure.input.rest.controller;
 
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -22,4 +22,10 @@ public class TestController {
     public String testUser() {
         return "Test for User";
     }
+    
+    @GetMapping("/testAll")
+    public String testAll() {
+        return "Test for All";
+    }
+
 }

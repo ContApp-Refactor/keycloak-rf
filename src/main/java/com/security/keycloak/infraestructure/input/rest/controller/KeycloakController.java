@@ -1,4 +1,4 @@
-package com.security.keycloak.controller;
+package com.security.keycloak.infraestructure.input.rest.controller;
 
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -18,10 +18,11 @@ import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.security.keycloak.dto.UserDTO;
-import com.security.keycloak.dto.UserResponse;
-import com.security.keycloak.service.AuthService;
-import com.security.keycloak.service.IKeycloakService;
+import com.security.keycloak.application.output.IAuthOutputPort;
+import com.security.keycloak.application.output.IKeycloakOutputPort;
+import com.security.keycloak.domain.models.User;
+import com.security.keycloak.infraestructure.input.rest.data.response.UserResponse;
+import com.security.keycloak.infraestructure.input.rest.mapper.IUserRestMapper;
 
 @RestController
 @PreAuthorize("hasRole('admin_client')")
@@ -30,10 +31,13 @@ import com.security.keycloak.service.IKeycloakService;
 public class KeycloakController {
 
     @Autowired
-    private IKeycloakService keycloakService;
+    private IKeycloakOutputPort keycloakService;
 
     @Autowired
-    private AuthService authService;
+    private IAuthOutputPort authService;
+
+    @Autowired
+    private IUserRestMapper userMapper;
 
 
     @GetMapping("/users")
@@ -47,13 +51,13 @@ public class KeycloakController {
     }
 
     @PostMapping("/create")
-    public ResponseEntity<?> createUser(@RequestBody UserDTO userDTO) throws URISyntaxException {
+    public ResponseEntity<?> createUser(@RequestBody User userDTO) throws URISyntaxException {
         String response = keycloakService.createUser(userDTO);
         return ResponseEntity.created(new URI("/keycloak/create")).body(response);
     }
 
     @PutMapping("/update/{username}")
-    public ResponseEntity<?> updateUser(@PathVariable String username, @RequestBody UserDTO userDTO) {
+    public ResponseEntity<?> updateUser(@PathVariable String username, @RequestBody User userDTO) {
         keycloakService.updateUser(username, userDTO);
         return ResponseEntity.ok("User updated successfully");
     }
@@ -67,7 +71,7 @@ public class KeycloakController {
     @PreAuthorize("hasRole('user_client') or hasRole('admin_client')")
     @GetMapping("/getCurrentUser")
     public UserResponse obtenerUsername(@RequestHeader("Authorization") String authorizationHeader) throws NoSuchAlgorithmException, InvalidKeySpecException {
-        return authService.getCurrentUser(authorizationHeader);
+        return userMapper.toUserResponse(authService.getCurrentUser(authorizationHeader));
     }
 
 }
