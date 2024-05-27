@@ -7,13 +7,13 @@ import org.keycloak.admin.client.resource.RealmResource;
 import org.keycloak.admin.client.resource.UsersResource;
 
 public class KeycloakProvider {
-    private static final String KEYCLOAK_SERVER_URL = "http://localhost:8090";
+    private static final String KEYCLOAK_SERVER_URL = "http://contables.unicauca.edu.co:80";
     private static final String REALM_NAME = "oauth2-realm";
     private static final String REALM_MASTER =  "master";
     private static final String ADMIN_CLI = "admin-cli";
-    private static final String USER_CONSOLE = "admin";
-    private static final String PASSWORD_CONSOLE = "admin";
-    private static final String CLIENT_SECRET = "SOBUMVzR6E8JzNqc0wlPM6tsTUHHwhyZ";
+    private static final String USER_CONSOLE = "contables";
+    private static final String PASSWORD_CONSOLE = "kPiP4WSxSH9Gdq";
+    private static final String CLIENT_SECRET = "fS55Kzk07rJYpkMotC07eFGaLeaKkgF0";
 
     //RealmResource para manipulação do Keycloak
     public static RealmResource getRealmResource() {
