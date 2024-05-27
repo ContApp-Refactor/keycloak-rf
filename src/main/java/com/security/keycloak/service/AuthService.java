@@ -9,7 +9,7 @@ import java.util.Base64;
 import java.util.List;
 import java.util.Map;
 
-
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import com.security.keycloak.dto.UserResponse;
@@ -23,7 +23,8 @@ import io.jsonwebtoken.Jwts;
 @Service
 public class AuthService {
 
-    private  String publicKeyString = "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAqXP5w8QRuGpYmYqAMcmFy1UJ+hbkY7rxGN8JyEQGclsFj5Qx00Zue2LCdqKQGxWSqpC+ZZh49h0AH2zfawnYXCQ20gDn5CuvfpBxGY94RlAgxJlcAksNpEDwbBF2g2lBxtj1ABKXpHPrQHncwxKTdDAZFpbQW6K1nJYFcAU+AOpOrP/b13EeLVJTuixvgDYiRM/WbGzLxWbNQUVo9v6fueOv1bglmTjQaAEi/FZHAvpx6Hxughk5j4KQd1ykDX1vpH3xGxIfMKdXlSX1MAlPyyDKNZAqQPUwdzwW/3vAanXmuoICZN9DbFTxIgC7LCVZQaGgaJpYH5pNReUtE6gP2wIDAQAB";  
+    @Value("${jwt.public.key}")
+    private  String publicKeyString;
 
 
      //obtener usuaruio del token
