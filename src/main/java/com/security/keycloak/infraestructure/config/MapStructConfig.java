@@ -1,4 +1,4 @@
-package com.security.keycloak.infraestructure.configMapper;
+package com.security.keycloak.infraestructure.config;
 
 import org.mapstruct.factory.Mappers;
 import org.springframework.context.annotation.Bean;

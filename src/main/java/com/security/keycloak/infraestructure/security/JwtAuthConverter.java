@@ -1,4 +1,4 @@
-package com.security.keycloak.config;
+package com.security.keycloak.infraestructure.security;
 
 import org.springframework.stereotype.Component;
 
