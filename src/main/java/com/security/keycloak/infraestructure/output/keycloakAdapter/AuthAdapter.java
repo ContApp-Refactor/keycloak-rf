@@ -38,16 +38,13 @@ public class AuthAdapter implements IAuthOutputPort{
             @SuppressWarnings("unchecked")
             User user = User.builder()
             .id(claims.get("sub").toString())
-            .username(claims.getSubject())
+            .username(claims.get("preferred_username").toString())
             .email(claims.get("email").toString())
             .firstName(claims.get("given_name").toString())
             .lastName(claims.get("family_name").toString())
             .roles((List<String>) ((Map<String, Object>) ((Map<String, Object>) claims.get("resource_access")).get("microservices_client")).get("roles"))
             .build();
 
-
-            user.setUsername(claims.getSubject());
-            user.setEmail(claims.get("email").toString());
             return user;
         } else {
             return null;
