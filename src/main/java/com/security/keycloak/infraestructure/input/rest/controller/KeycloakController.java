@@ -56,9 +56,9 @@ public class KeycloakController {
         return ResponseEntity.created(new URI("/keycloak/create")).body(response);
     }
 
-    @PutMapping("/update/{username}")
-    public ResponseEntity<?> updateUser(@PathVariable String username, @RequestBody User userDTO) {
-        keycloakService.updateUser(username, userDTO);
+    @PutMapping("/update/{userId}")
+    public ResponseEntity<?> updateUser(@PathVariable String userId, @RequestBody User userDTO) {
+        keycloakService.updateUser(userId, userDTO);
         return ResponseEntity.ok("User updated successfully");
     }
 
