@@ -42,7 +42,7 @@ public class AuthAdapter implements IAuthOutputPort{
             .email("** email **")
             .firstName(claims.get("given_name").toString())
             .lastName(claims.get("family_name").toString())
-            .roles((List<String>) ((Map<String, Object>) ((Map<String, Object>) claims.get("resource_access")).get("microservices_client")).get("roles"))
+            .roles((List<String>) (((Map<String, Object>) claims.get("realm_access"))).get("roles"))
             .build();
 
             return user;

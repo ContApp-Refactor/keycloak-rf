@@ -40,6 +40,11 @@ public class KeycloakService implements IKeycloakInputPort {
     public void updateUser(String userId, User user) {
         keycloakOutputPort.updateUser(userId, user);
     }
+
+    @Override
+    public UserResponse findUserById(String userId) {
+        return keycloakOutputPort.findUserById(userId);
+    }
     
     
 }

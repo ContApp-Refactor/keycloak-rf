@@ -45,6 +45,11 @@ public class KeycloakController {
         return ResponseEntity.ok(keycloakService.findAllUsers());
     }
 
+    @GetMapping("/user/{userId}")
+    public ResponseEntity<?> findUserById(@PathVariable String userId) {
+        return ResponseEntity.ok(keycloakService.findUserById(userId));
+    }
+
     @GetMapping("/users/{username}")
     public ResponseEntity<?> findUserByUsername(@PathVariable String username) {
         return ResponseEntity.ok(keycloakService.findUserByUsername(username));
