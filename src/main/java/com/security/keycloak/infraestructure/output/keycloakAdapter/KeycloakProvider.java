@@ -1,12 +1,17 @@
 package com.security.keycloak.infraestructure.output.keycloakAdapter;
 
+import java.util.HashMap;
+import java.util.Map;
+
 import org.jboss.resteasy.client.jaxrs.internal.ResteasyClientBuilderImpl;
 import org.keycloak.admin.client.Keycloak;
 import org.keycloak.admin.client.KeycloakBuilder;
 import org.keycloak.admin.client.resource.RealmResource;
 import org.keycloak.admin.client.resource.UsersResource;
 
-
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonMappingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.security.keycloak.application.output.IKeycloakTokenOutputPort;
 import com.security.keycloak.application.output.IRealmResourceOutputPort;
 import com.security.keycloak.domain.models.Auth;
@@ -77,8 +82,9 @@ public class KeycloakProvider implements IRealmResourceOutputPort , IKeycloakTok
         return realmResource.users();
     }
 
+    @SuppressWarnings("unchecked")
     @Override
-    public String getToken(Auth auth) {
+    public String getToken(Auth auth) throws JsonMappingException, JsonProcessingException {
         
         MultiValueMap<String, String> formData = new LinkedMultiValueMap<>();
         formData.add("client_id", CLIENT_ID);
@@ -93,9 +99,22 @@ public class KeycloakProvider implements IRealmResourceOutputPort , IKeycloakTok
         HttpEntity<MultiValueMap<String, String>> requestEntity = new HttpEntity<>(formData, headers);
 
         ResponseEntity<String> response = new RestTemplate().postForEntity(tokenUrl, requestEntity, String.class);
+        
+        String responseBody = response.getBody();
+        ObjectMapper mapper = new ObjectMapper();
+        Map<String, Object> responseMap = mapper.readValue(responseBody, Map.class);
+        String accessToken = (String) responseMap.get("access_token");
 
-        return response.getBody();
-     
+        Object expiresInObject = responseMap.get("expires_in");
+        Object refreshExpires = responseMap.get("refresh_expires_in");
+   
+        Map<String, Object> accessTokenInfo = new HashMap<>();
+        accessTokenInfo.put("access_token", accessToken);
+        accessTokenInfo.put("expires_in", expiresInObject);
+        accessTokenInfo.put("refresh_expires_in", refreshExpires);
+    
+        String accessTokenJson = mapper.writeValueAsString(accessTokenInfo);
+        return accessTokenJson;
     }
 
     

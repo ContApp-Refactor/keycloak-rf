@@ -5,6 +5,8 @@ import org.keycloak.admin.client.resource.UsersResource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonMappingException;
 import com.security.keycloak.application.input.IKeycloakTokenInputPort;
 import com.security.keycloak.application.input.IRealmResourceInputPort;
 import com.security.keycloak.application.output.IKeycloakTokenOutputPort;
@@ -26,7 +28,7 @@ public class KeycloakProviderService implements IKeycloakTokenInputPort, IRealmR
     }
 
     @Override
-    public String getToken(Auth auth) {
+    public String getToken(Auth auth) throws JsonMappingException, JsonProcessingException {
         return keycloakOutputPort.getToken(auth);
     }
 
