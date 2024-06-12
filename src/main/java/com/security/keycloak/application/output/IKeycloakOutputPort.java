@@ -8,6 +8,7 @@ import com.security.keycloak.infraestructure.input.rest.data.response.UserRespon
 public interface IKeycloakOutputPort {
     List<UserResponse> findAllUsers();
     List<UserResponse> findUserByUsername(String username);
+    UserResponse findUserById(String userId);
     String createUser(User user);
     void deleteUser(String userId);
     void updateUser(String userId, User user);

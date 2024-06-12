@@ -62,7 +62,7 @@ public class KeycloakAdapterImpl implements IKeycloakOutputPort{
 
     /**
      * Metodo para obtener un usuario por su id
-     * @param userId id del usuario
+     * @param  username nombre de usuario
      * @return List<UserResponse>
      */
     @Override
@@ -195,5 +195,27 @@ public class KeycloakAdapterImpl implements IKeycloakOutputPort{
 
         UserResource userResource = realmResourceInputPort.getUserResource().get(userId);
         userResource.update(user);
+    }
+
+
+    @Override
+    public UserResponse findUserById(String userId) {
+        UserRepresentation user = realmResourceInputPort.getUserResource().get(userId).toRepresentation();
+
+        List<RoleRepresentation> roles = realmResourceInputPort.getRealmResource()
+            .users()
+            .get(user.getId())
+            .roles()
+            .realmLevel()
+            .listEffective();
+
+        return UserResponse.builder()
+            .id(user.getId())
+            .username(user.getUsername())
+            .email(user.getEmail())
+            .firstName(user.getFirstName())
+            .lastName(user.getLastName())
+            .roles(roles.stream().map(RoleRepresentation::getName).toList())
+            .build();
     }
 }
