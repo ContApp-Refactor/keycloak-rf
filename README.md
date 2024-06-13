@@ -1,4 +1,4 @@
-## Obtención del Token
+## Obtener Token
 
 Para obtener el token de autenticación, debes hacer una petición POST a la siguiente ruta:
 ```
@@ -42,3 +42,66 @@ curl -X POST http://.../keycloak/token/ \
     "password": "password"
 }'
 ```
+
+# API del Controlador de Keycloak
+Permite la gestión de usuarios de Keycloak, incluyendo la creación, actualización, recuperación y eliminación de usuarios.
+
+## Endpoints
+
+### Crear un Usuario
+**POST** `/keycloak/create`
+
+#### Cuerpo de la Solicitud
+```json
+{
+  "id": "string",
+  "username": "usuarioEjemplo",
+  "email": "usuario@ejemplo.com",
+  "firstName": "Juan",
+  "lastName": "Pérez",
+  "password": "ContraseñaSegura123",
+  "roles": [
+    "user_realm",
+    "admin_realm",
+    "super_realm"
+  ]
+}
+```
+
+### Actualizar un Usuario
+
+**PUT** `/keycloak/update/{userId}`
+
+***Parámetro de Ruta***
+
+- userId (string): El ID del usuario a actualizar.
+```json
+{
+  "id": "string",
+  "username": "usuarioActualizado",
+  "email": "usuarioActualizado@ejemplo.com",
+  "firstName": "Ana",
+  "lastName": "López",
+  "password": "NuevaContraseñaSegura123!",
+  "roles": [
+    "user_realm",
+    "admin_realm"
+  ]
+}
+```
+
+### Obtener y Eliminar Usuarios
+
+| Método   | Endpoint                           | Descripción                                              |
+|----------|------------------------------------|----------------------------------------------------------|
+| **GET**  | `/keycloak/users`                  | Recupera una lista de todos los usuarios en Keycloak.    |
+| **GET**  | `/keycloak/users/{username}`       | Recupera una de usuarios que coincidan con el username   | 
+| **GET**  | `/keycloak/user/{userId}`          | Recupera los detalles de un usuario por su ID de usuario.|
+| **GET**  | `/keycloak/getCurrentUser`         | Recupera los detalles del usuario actualmente autenticado. |
+| **DELETE**| `/keycloak/delete/{userId}`       | Elimina un usuario de Keycloak.                          |
+
+### Swagger
+
+Para acceder a Swagger, use el siguiente enlace: [http://localhost:8081/swagger-ui/index.html#/](http://localhost:8081/swagger-ui/index.html#/). 
+
+Las peticiones requieren un token, por lo que debe agregarlo en la sección correspondiente.

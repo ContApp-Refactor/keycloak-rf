@@ -23,9 +23,9 @@ public class TestController {
         return "Test for User";
     }
     
-    @GetMapping("/testAll")
-    public String testAll() {
-        return "Test for All";
+    @GetMapping("/ping")
+    public String ping() {
+        return "pong";
     }
 
 }
