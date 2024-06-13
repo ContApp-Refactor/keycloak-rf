@@ -9,7 +9,7 @@ public interface IKeycloakInputPort {
     List<UserResponse> findAllUsers();
     List<UserResponse> findUserByUsername(String username);
     UserResponse findUserById(String userId);
-    String createUser(User user);
+    User createUser(User user);
     void deleteUser(String userId);
-    void updateUser(String userId, User user);
+    User updateUser(String userId, User user);
 }

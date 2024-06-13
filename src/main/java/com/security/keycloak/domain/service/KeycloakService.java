@@ -27,7 +27,7 @@ public class KeycloakService implements IKeycloakInputPort {
     }
 
     @Override
-    public String createUser(User user) {
+    public User createUser(User user) {
         return keycloakOutputPort.createUser(user);
     }
 
@@ -37,8 +37,8 @@ public class KeycloakService implements IKeycloakInputPort {
     }
 
     @Override
-    public void updateUser(String userId, User user) {
-        keycloakOutputPort.updateUser(userId, user);
+    public User updateUser(String userId, User user) {
+        return keycloakOutputPort.updateUser(userId, user);
     }
 
     @Override

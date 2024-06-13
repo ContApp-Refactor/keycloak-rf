@@ -3,6 +3,7 @@ package com.security.keycloak.infraestructure.output.keycloakAdapter;
 import java.util.HashMap;
 import java.util.Map;
 
+import org.jboss.resteasy.client.jaxrs.ResteasyClient;
 import org.jboss.resteasy.client.jaxrs.internal.ResteasyClientBuilderImpl;
 import org.keycloak.admin.client.Keycloak;
 import org.keycloak.admin.client.KeycloakBuilder;
@@ -59,21 +60,28 @@ public class KeycloakProvider implements IRealmResourceOutputPort , IKeycloakTok
     @Value("${jwt.auth.converter.resource-id}")
     private String CLIENT_ID;
 
+    private Keycloak keycloak;
+    private ResteasyClient resteasyClient;
+
     @Override
     public RealmResource getRealmResource() {
-        Keycloak keycloak = KeycloakBuilder.builder()
-                .serverUrl(KEYCLOAK_SERVER_URL)
-                .realm(REALM_MASTER)
-                .username(USER_CONSOLE)
-                .password(PASSWORD_CONSOLE)
-                .clientId(ADMIN_CLI)
-                .clientSecret(CLIENT_SECRET)
-                .resteasyClient(new ResteasyClientBuilderImpl()
-                        .connectionPoolSize(10)
-                        .build())
-                .build();
-        
-        return keycloak.realm(REALM_NAME); 
+        if (keycloak == null) {
+            resteasyClient = new ResteasyClientBuilderImpl()
+                    .connectionPoolSize(10)
+                    .build();
+    
+            keycloak = KeycloakBuilder.builder()
+                    .serverUrl(KEYCLOAK_SERVER_URL)
+                    .realm(REALM_MASTER)
+                    .username(USER_CONSOLE)
+                    .password(PASSWORD_CONSOLE)
+                    .clientId(ADMIN_CLI)
+                    .clientSecret(CLIENT_SECRET)
+                    .resteasyClient(resteasyClient)
+                    .build();
+        }
+    
+        return keycloak.realm(REALM_NAME);
     }
 
     @Override
@@ -117,5 +125,6 @@ public class KeycloakProvider implements IRealmResourceOutputPort , IKeycloakTok
         return accessTokenJson;
     }
 
+    
     
 }

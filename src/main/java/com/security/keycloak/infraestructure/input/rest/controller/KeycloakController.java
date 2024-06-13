@@ -1,6 +1,5 @@
 package com.security.keycloak.infraestructure.input.rest.controller;
 
-import java.net.URI;
 import java.net.URISyntaxException;
 import java.security.NoSuchAlgorithmException;
 import java.security.spec.InvalidKeySpecException;
@@ -57,14 +56,13 @@ public class KeycloakController {
 
     @PostMapping("/create")
     public ResponseEntity<?> createUser(@RequestBody User userDTO) throws URISyntaxException {
-        String response = keycloakService.createUser(userDTO);
-        return ResponseEntity.created(new URI("/keycloak/create")).body(response);
+        User response = keycloakService.createUser(userDTO);
+        return ResponseEntity.ok(response);
     }
 
     @PutMapping("/update/{userId}")
     public ResponseEntity<?> updateUser(@PathVariable String userId, @RequestBody User userDTO) {
-        keycloakService.updateUser(userId, userDTO);
-        return ResponseEntity.ok("User updated successfully");
+        return ResponseEntity.ok(keycloakService.updateUser(userId, userDTO));
     }
 
     @DeleteMapping("/delete/{userId}")

@@ -98,7 +98,7 @@ public class KeycloakAdapterImpl implements IKeycloakOutputPort{
      * @return String
      */
     @Override
-    public String createUser(@NonNull User userDTO) {
+    public User createUser(@NonNull User userDTO) {
         int status = 0;
         UsersResource usersResource = realmResourceInputPort.getUserResource();
 
@@ -148,14 +148,14 @@ public class KeycloakAdapterImpl implements IKeycloakOutputPort{
                 .realmLevel()
                 .add(roles);
 
-            return "User created with username: " + user.getUsername() + " successfully.";
+            return userDTO;
 
         } else if(status == 409) {
             log.error("User with username: {} already exists.", user.getUsername());
-            return "User with username: " + user.getUsername() + " already exists.";
+            return null;
         } else {
             log.error("Error creating user with username: {}. Status code: {}", user.getUsername(), status);
-            return "Error creating user with username: " + user.getUsername() + ". Status code: " + status;    
+            return null;
         }
     }
 
@@ -176,25 +176,58 @@ public class KeycloakAdapterImpl implements IKeycloakOutputPort{
      * @param userDTO datos del usuario
      */
     @Override
-    public void updateUser(String userId,@NonNull User userDTO) {
-        
-        CredentialRepresentation credentialRepresentation = new CredentialRepresentation();
-        credentialRepresentation.setTemporary(false);
-        credentialRepresentation.setType(OAuth2Constants.PASSWORD);
-        credentialRepresentation.setValue(userDTO.getPassword());
+    public User updateUser(String userId,@NonNull User userDTO) {
 
+        //Creacion de la representacion del usuario
         UserRepresentation user = new UserRepresentation();
-
         user.setUsername(userDTO.getUsername());
         user.setFirstName(userDTO.getFirstName());
         user.setLastName(userDTO.getLastName());
         user.setEmail(userDTO.getEmail());
         user.setEnabled(true);
         user.setEmailVerified(true);
-        user.setCredentials(List.of(credentialRepresentation));
 
+        //Si la contraseña es difrente de null no se actualiza y se mantiene la misma
+        if (userDTO.getPassword() != null) {
+            //Creacion de la representacion de las credenciales
+            CredentialRepresentation credentialRepresentation = new CredentialRepresentation();
+            credentialRepresentation.setTemporary(false);
+            credentialRepresentation.setType(OAuth2Constants.PASSWORD);
+            credentialRepresentation.setValue(userDTO.getPassword());
+
+            user.setCredentials(List.of(credentialRepresentation));
+        }
+
+        //Actualizacion de los roles
+        RealmResource realmResource = realmResourceInputPort.getRealmResource();
+        List<RoleRepresentation> roles = realmResource
+            .roles()
+            .list()
+            .stream()
+            .filter(role -> userDTO.getRoles()
+                .stream()
+                .anyMatch(roleName -> roleName.equalsIgnoreCase(role.getName())))
+            .toList();
+        
+        //Eliminacion de los roles actuales
+        realmResource.users()
+            .get(userId)
+            .roles()
+            .realmLevel()
+            .remove(realmResource.roles().list());
+        
+        //Adicion de los nuevos roles
+        realmResource.users()
+            .get(userId)
+            .roles()
+            .realmLevel()
+            .add(roles);
+
+        //Actualizacion del usuario
         UserResource userResource = realmResourceInputPort.getUserResource().get(userId);
         userResource.update(user);
+
+        return userDTO;
     }
 
 
