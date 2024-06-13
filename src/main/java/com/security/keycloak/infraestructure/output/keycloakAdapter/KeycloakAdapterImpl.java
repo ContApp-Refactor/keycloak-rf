@@ -187,7 +187,7 @@ public class KeycloakAdapterImpl implements IKeycloakOutputPort{
         user.setEnabled(true);
         user.setEmailVerified(true);
 
-        //Si la contraseña es difrente de null no se actualiza y se mantiene la misma
+        //Si la contraseña es difrente de null no se actualiza y se mantiene la misma contraseña
         if (userDTO.getPassword() != null) {
             //Creacion de la representacion de las credenciales
             CredentialRepresentation credentialRepresentation = new CredentialRepresentation();
