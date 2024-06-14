@@ -3,7 +3,10 @@
 ![Escenario](https://res.cloudinary.com/dilrruxyx/image/upload/v1718310860/keycloak_pdryin.jpg)
 
 
-Para instalar Keycloak en tu máquina local, sigue estos pasos: [KEYCLOAKDOCKER](./Doc/KEYCLOAKDOCKER.md)
+Para instalar Keycloak en tu máquina local, consulta: [KEYCLOAKDOCKER](./Doc/KEYCLOAKDOCKER.md)
+
+Para facilitar las peticiones, consulta: [Configurar Postman](CONFIGPOSTMAN.md)
+
 
 ## Obtener Token
 
