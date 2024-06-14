@@ -22,6 +22,7 @@ import com.security.keycloak.application.output.IKeycloakOutputPort;
 import com.security.keycloak.domain.models.User;
 import com.security.keycloak.infraestructure.input.rest.data.response.UserResponse;
 import com.security.keycloak.infraestructure.input.rest.mapper.IUserRestMapper;
+import com.security.keycloak.infraestructure.output.keycloakAdapter.Exception.UserException;
 
 @RestController
 @PreAuthorize("hasRole('admin_client')")
@@ -56,8 +57,16 @@ public class KeycloakController {
 
     @PostMapping("/create")
     public ResponseEntity<?> createUser(@RequestBody User userDTO) throws URISyntaxException {
-        User response = keycloakService.createUser(userDTO);
-        return ResponseEntity.ok(response);
+        try{
+            User response = keycloakService.createUser(userDTO);
+            return ResponseEntity.ok(response);
+        }catch (UserException e){
+            if (e.getStatus() == 409){
+                return ResponseEntity.status(409).body(e.getMessage());
+            }else{
+                return ResponseEntity.status(500).body(e.getMessage());
+            }
+        }
     }
 
     @PutMapping("/update/{userId}")

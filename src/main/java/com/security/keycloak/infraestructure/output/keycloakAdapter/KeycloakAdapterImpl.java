@@ -16,6 +16,7 @@ import com.security.keycloak.application.input.IRealmResourceInputPort;
 import com.security.keycloak.application.output.IKeycloakOutputPort;
 import com.security.keycloak.domain.models.User;
 import com.security.keycloak.infraestructure.input.rest.data.response.UserResponse;
+import com.security.keycloak.infraestructure.output.keycloakAdapter.Exception.UserException;
 
 import jakarta.ws.rs.core.Response;
 import lombok.NonNull;
@@ -164,10 +165,10 @@ public class KeycloakAdapterImpl implements IKeycloakOutputPort{
 
         } else if(status == 409) {
             log.error("User with username: {} already exists.", user.getUsername());
-            return null;
+            throw new UserException("User with username already exists", status);
         } else {
             log.error("Error creating user with username: {}. Status code: {}", user.getUsername(), status);
-            return null;
+            throw new UserException("Error creating user. Status code: " + status, status);
         }
     }
 
