@@ -18,23 +18,37 @@ import com.security.keycloak.domain.models.User;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 
+/**
+ * AuthAdapter es un componente que implementa la interfaz IAuthOutputPort y proporciona
+ * métodos para obtener el usuario actual a partir de un token JWT.
+*/
 @Component
 public class AuthAdapter implements IAuthOutputPort{
-
 
     @Value("${jwt.public.key}")
     private  String publicKeyString;
 
+    /**
+     * Obtiene el usuario actual a partir del encabezado de autorización.
+     *
+     * @param authorizationHeader el encabezado de autorización que contiene el token JWT.
+     * @return el usuario extraído del JWT, o null si el token no es válido.
+     */
     @Override
     public User getCurrentUser(String authorizationHeader) throws NoSuchAlgorithmException, InvalidKeySpecException {
         String jwt = null;
+         // Extrae el token JWT del encabezado de autorización.
         if (authorizationHeader != null && authorizationHeader.startsWith("Bearer ")) {
             jwt = authorizationHeader.substring(7);
         }
 
         if (jwt != null) {
+            // Obtiene la clave pública para verificar el token.
             PublicKey publicKey = getPublicKey(publicKeyString);
+            // Analiza y verifica el token JWT.
             Claims claims = Jwts.parser().setSigningKey(publicKey).parseClaimsJws(jwt).getBody();
+
+            // Crea un objeto User a partir de los claims del token.
             @SuppressWarnings("unchecked")
             User user = User.builder()
             .id(claims.get("sub").toString())
@@ -50,14 +64,19 @@ public class AuthAdapter implements IAuthOutputPort{
             return null;
         }
     }
-
-        //obtener publicKey
+    /**
+     * Obtiene la clave pública a partir de una cadena codificada en Base64.
+     *
+     * @param publicKeyString la cadena que contiene la clave pública codificada.
+     * @return la clave pública.
+     * @throws NoSuchAlgorithmException si el algoritmo RSA no está disponible.
+     * @throws InvalidKeySpecException si la especificación de la clave pública es inválida.
+     */
     private PublicKey getPublicKey(String publicKeyString) throws NoSuchAlgorithmException, InvalidKeySpecException {
         byte[] publicKeyBytes = Base64.getDecoder().decode(publicKeyString);
         X509EncodedKeySpec keySpec = new X509EncodedKeySpec(publicKeyBytes);
         KeyFactory keyFactory = KeyFactory.getInstance("RSA");
         return keyFactory.generatePublic(keySpec);
     }
-    
     
 }

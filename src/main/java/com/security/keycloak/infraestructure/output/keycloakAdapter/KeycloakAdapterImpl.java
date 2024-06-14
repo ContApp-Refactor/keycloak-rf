@@ -21,6 +21,10 @@ import jakarta.ws.rs.core.Response;
 import lombok.NonNull;
 import lombok.extern.slf4j.Slf4j;
 
+/**
+ * KeycloakAdapterImpl es un servicio que implementa la interfaz IKeycloakOutputPort,
+ * proporcionando métodos para interactuar con Keycloak como crear, actualizar, eliminar y obtener usuarios.
+ */
 @Service
 @Slf4j
 public class KeycloakAdapterImpl implements IKeycloakOutputPort{
@@ -100,8 +104,10 @@ public class KeycloakAdapterImpl implements IKeycloakOutputPort{
     @Override
     public User createUser(@NonNull User userDTO) {
         int status = 0;
+        //Obtencion de los recursos de usuario
         UsersResource usersResource = realmResourceInputPort.getUserResource();
 
+        //Creacion de la representacion del usuario
         UserRepresentation user = new UserRepresentation();
 
         user.setUsername(userDTO.getUsername());
@@ -111,13 +117,16 @@ public class KeycloakAdapterImpl implements IKeycloakOutputPort{
         user.setEnabled(true);
         user.setEmailVerified(true);
 
+        // Crear el usuario en Keycloak
         Response response = usersResource.create(user);
         status = response.getStatus();
 
         if(status == 201) {
+            // Obtener el ID del usuario a partir de la respuesta
             String path = response.getLocation().getPath();
             String userId = path.substring(path.lastIndexOf('/') + 1);
             
+            // Configurar la representación de las credenciales del usuario
             CredentialRepresentation credentialRepresentation = new CredentialRepresentation();
             credentialRepresentation.setTemporary(false);
             credentialRepresentation.setType(OAuth2Constants.PASSWORD);
@@ -125,10 +134,12 @@ public class KeycloakAdapterImpl implements IKeycloakOutputPort{
 
             usersResource.get(userId).resetPassword(credentialRepresentation);
 
+            // Obtener el recurso del realm de Keycloak
             RealmResource realmResource = realmResourceInputPort.getRealmResource();
 
             List<RoleRepresentation> roles = null;
 
+             // Si no se especifican roles, asignar el rol por defecto 'user_realm'
             if(userDTO.getRoles() == null || userDTO.getRoles().isEmpty()) {
                 roles = List.of(realmResource.roles().get("user_realm").toRepresentation());       
             }else{
@@ -142,6 +153,7 @@ public class KeycloakAdapterImpl implements IKeycloakOutputPort{
                     .toList();
             }
 
+            // Asignar los roles al usuario en Keycloak
             realmResource.users()
                 .get(userId)
                 .roles()
@@ -230,7 +242,11 @@ public class KeycloakAdapterImpl implements IKeycloakOutputPort{
         return userDTO;
     }
 
-
+    /**
+     * Metodo para obtener un usuario por su id
+     * @param userId id del usuario
+     * @return UserResponse
+     */
     @Override
     public UserResponse findUserById(String userId) {
         UserRepresentation user = realmResourceInputPort.getUserResource().get(userId).toRepresentation();

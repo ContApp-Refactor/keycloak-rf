@@ -29,6 +29,10 @@ import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 
 
+/**
+ * KeycloakProvider es un componente que implementa las interfaces IRealmResourceOutputPort e IKeycloakTokenOutputPort,
+ * proporcionando métodos para obtener el recurso Realm y el token de autenticación de Keycloak.
+ */
 
 @Component
 public class KeycloakProvider implements IRealmResourceOutputPort , IKeycloakTokenOutputPort{
@@ -63,8 +67,13 @@ public class KeycloakProvider implements IRealmResourceOutputPort , IKeycloakTok
     private Keycloak keycloak;
     private ResteasyClient resteasyClient;
 
+    /**
+     * Metodo para obtener el recurso Realm de Keycloak
+     * @return RealmResource
+     */
     @Override
     public RealmResource getRealmResource() {
+        // Solo se crea una instancia de Keycloak si es nula (Singleton Pattern)
         if (keycloak == null) {
             resteasyClient = new ResteasyClientBuilderImpl()
                     .connectionPoolSize(10)
@@ -84,16 +93,23 @@ public class KeycloakProvider implements IRealmResourceOutputPort , IKeycloakTok
         return keycloak.realm(REALM_NAME);
     }
 
+    /**
+     * Metodo para obtener el recurso Users de Keycloak
+     * @return UsersResource
+     */
     @Override
     public UsersResource getUserResource() {
         RealmResource realmResource = getRealmResource();
         return realmResource.users();
     }
 
+
+
     @SuppressWarnings("unchecked")
     @Override
     public String getToken(Auth auth) throws JsonMappingException, JsonProcessingException {
         
+        // Preparar los datos del formulario para la solicitud de token
         MultiValueMap<String, String> formData = new LinkedMultiValueMap<>();
         formData.add("client_id", CLIENT_ID);
         formData.add("grant_type", "password");
@@ -101,26 +117,33 @@ public class KeycloakProvider implements IRealmResourceOutputPort , IKeycloakTok
         formData.add("password", auth.getPassword());
         formData.add("client_secret", CLIENT_SECRET);
         
+        // Configurar los encabezados de la solicitud
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
 
+        // Crear la entidad de la solicitud HTTP con los datos del formulario y los encabezados
         HttpEntity<MultiValueMap<String, String>> requestEntity = new HttpEntity<>(formData, headers);
 
         ResponseEntity<String> response = new RestTemplate().postForEntity(tokenUrl, requestEntity, String.class);
         
         String responseBody = response.getBody();
+
+        // Obtener el token de acceso del mapa de respuesta
         ObjectMapper mapper = new ObjectMapper();
         Map<String, Object> responseMap = mapper.readValue(responseBody, Map.class);
         String accessToken = (String) responseMap.get("access_token");
 
+        // Obtener los tiempos de expiración del token de acceso y del token de actualización
         Object expiresInObject = responseMap.get("expires_in");
         Object refreshExpires = responseMap.get("refresh_expires_in");
    
+         // Crear un nuevo mapa para almacenar la información del token de acceso
         Map<String, Object> accessTokenInfo = new HashMap<>();
         accessTokenInfo.put("access_token", accessToken);
         accessTokenInfo.put("expires_in", expiresInObject);
         accessTokenInfo.put("refresh_expires_in", refreshExpires);
     
+        // Convertir el mapa de información del token de acceso a una cadena JSON
         String accessTokenJson = mapper.writeValueAsString(accessTokenInfo);
         return accessTokenJson;
     }
