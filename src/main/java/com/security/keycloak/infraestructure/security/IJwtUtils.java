@@ -9,6 +9,6 @@ public interface IJwtUtils {
      * Obtiene el id del usuario
      * @return id del usuario
      */
-    String getId();
+    String getUserId();
     
 } 

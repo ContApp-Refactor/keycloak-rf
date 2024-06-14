@@ -24,13 +24,16 @@ public class SecurityConfig {
     SecurityFilterChain securityFilterChain(HttpSecurity httpSecurity) throws Exception {
         return httpSecurity
                 .csrf(csrf -> csrf.disable())
+                 // Configura las reglas de autorización de solicitudes HTTP.
                 .authorizeHttpRequests(http -> http
                     .requestMatchers("/keycloak/**","/swagger-ui/**","/v3/api-docs/**").permitAll()
                     .anyRequest()
                     .authenticated())
+                // Configura el servidor de recursos OAuth2 para usar JWT.
                 .oauth2ResourceServer(oauth -> {
                     oauth.jwt(jwt -> jwt.jwtAuthenticationConverter(jwtAuthConverter));
                 })
+                // Configura la política de gestión de sesiones para que sea sin estado.
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .build();
     }
