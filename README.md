@@ -3,7 +3,7 @@
 ![Escenario](https://res.cloudinary.com/dilrruxyx/image/upload/v1718310860/keycloak_pdryin.jpg)
 
 
-Para instalar Keycloak en tu máquina local, sigue estos pasos: [DOCUMENTATION](./Doc/DOCUMENTATION.md)
+Para instalar Keycloak en tu máquina local, sigue estos pasos: [KEYCLOAKDOCKER](./Doc/KEYCLOAKDOCKER.md)
 
 ## Obtener Token
 
@@ -109,6 +109,10 @@ Permite la gestión de usuarios de Keycloak, incluyendo la creación, actualizac
 
 ### Swagger
 
-Para acceder a Swagger, use el siguiente enlace: [http://localhost:8081/swagger-ui/index.html#/](http://localhost:8081/swagger-ui/index.html#/). 
+Para acceder a la documentacion generada por Swagger, use el siguiente enlace: [http://localhost:8081/swagger-ui/index.html#/](http://localhost:8081/swagger-ui/index.html#/). 
 
 Las peticiones requieren un token, por lo que debe agregarlo en la sección correspondiente.
+
+### Diagrama de secuencia
+
+![](https://res.cloudinary.com/dilrruxyx/image/upload/v1718338073/secuencia_aqaqtp.jpg)
