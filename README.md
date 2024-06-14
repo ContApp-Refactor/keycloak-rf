@@ -1,3 +1,10 @@
+## Keycloak
+
+![Escenario](https://res.cloudinary.com/dilrruxyx/image/upload/v1718310860/keycloak_pdryin.jpg)
+
+
+Para instalar Keycloak en tu máquina local, sigue estos pasos: [DOCUMENTATION](./Doc/DOCUMENTATION.md)
+
 ## Obtener Token
 
 Para obtener el token de autenticación, debes hacer una petición POST a la siguiente ruta:
@@ -51,7 +58,7 @@ Permite la gestión de usuarios de Keycloak, incluyendo la creación, actualizac
 ### Crear un Usuario
 **POST** `/keycloak/create`
 
-#### Cuerpo de la Solicitud
+***Cuerpo de la Solicitud***
 ```json
 {
   "id": "string",
