@@ -5,7 +5,7 @@
 
 Para instalar Keycloak en tu máquina local, consulta: [KEYCLOAKDOCKER](./Doc/KEYCLOAKDOCKER.md)
 
-Para facilitar las peticiones, consulta: [Configurar Postman](CONFIGPOSTMAN.md)
+Para facilitar las peticiones, consulta: [Configurar Postman](./Doc/CONFIGPOSTMAN.md)
 
 
 ## Obtener Token
