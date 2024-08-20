@@ -44,6 +44,5 @@ postman.setGlobalVariable("tokenKeycloak",data.access_token)
 
 ```
 http://contables.unicauca.edu.co/api/enterprises/
-
 ```
 
