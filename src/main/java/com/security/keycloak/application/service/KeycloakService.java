@@ -1,4 +1,4 @@
-package com.security.keycloak.domain.service;
+package com.security.keycloak.application.service;
 
 import java.util.List;
 
