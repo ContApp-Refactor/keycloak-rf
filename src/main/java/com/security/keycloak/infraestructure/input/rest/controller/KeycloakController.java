@@ -24,6 +24,10 @@ import com.security.keycloak.infraestructure.input.rest.data.response.UserRespon
 import com.security.keycloak.infraestructure.input.rest.mapper.IUserRestMapper;
 import com.security.keycloak.infraestructure.output.keycloakAdapter.Exception.UserException;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+
 @RestController
 @PreAuthorize("hasRole('admin_client')")
 @RequestMapping("/keycloak")
@@ -39,50 +43,86 @@ public class KeycloakController {
     @Autowired
     private IUserRestMapper userMapper;
 
-
+    @Operation(summary = "Obtener todos los usuarios", description = "Recupera una lista de todos los usuarios registrados en el sistema.", responses = {
+            @ApiResponse(responseCode = "200", description = "Lista de usuarios recuperada con éxito", content = @Content(mediaType = "application/json")),
+            @ApiResponse(responseCode = "500", description = "Error interno al recuperar los usuarios", content = @Content(mediaType = "application/json"))
+    })
     @GetMapping("/users")
     public ResponseEntity<?> findAllUsers() {
         return ResponseEntity.ok(keycloakService.findAllUsers());
     }
 
+    @Operation(summary = "Obtener un usuario por ID", description = "Recupera los detalles de un usuario específico utilizando su ID.", responses = {
+            @ApiResponse(responseCode = "200", description = "Usuario encontrado con éxito", content = @Content(mediaType = "application/json")),
+            @ApiResponse(responseCode = "404", description = "Usuario no encontrado", content = @Content(mediaType = "application/json")),
+            @ApiResponse(responseCode = "500", description = "Error interno al buscar el usuario", content = @Content(mediaType = "application/json"))
+    })
     @GetMapping("/user/{userId}")
     public ResponseEntity<?> findUserById(@PathVariable String userId) {
         return ResponseEntity.ok(keycloakService.findUserById(userId));
     }
 
+    @Operation(summary = "Buscar un usuario por nombre de usuario", description = "Recupera los detalles de un usuario específico utilizando su nombre de usuario.", responses = {
+            @ApiResponse(responseCode = "200", description = "Usuario encontrado con éxito", content = @Content(mediaType = "application/json")),
+            @ApiResponse(responseCode = "404", description = "Usuario no encontrado", content = @Content(mediaType = "application/json")),
+            @ApiResponse(responseCode = "500", description = "Error interno al buscar el usuario", content = @Content(mediaType = "application/json"))
+    })
     @GetMapping("/users/{username}")
     public ResponseEntity<?> findUserByUsername(@PathVariable String username) {
         return ResponseEntity.ok(keycloakService.findUserByUsername(username));
     }
 
+    @Operation(summary = "Crear un nuevo usuario", description = "Crea un usuario en el sistema utilizando la información proporcionada en el cuerpo de la solicitud.", responses = {
+            @ApiResponse(responseCode = "200", description = "Usuario creado con éxito", content = @Content(mediaType = "application/json")),
+            @ApiResponse(responseCode = "409", description = "Usuario ya existente", content = @Content(mediaType = "application/json")),
+            @ApiResponse(responseCode = "400", description = "Solicitud inválida", content = @Content(mediaType = "application/json")),
+            @ApiResponse(responseCode = "500", description = "Error interno al crear el usuario", content = @Content(mediaType = "application/json"))
+    })
     @PostMapping("/create")
     public ResponseEntity<?> createUser(@RequestBody User userDTO) throws URISyntaxException {
-        try{
+        try {
             User response = keycloakService.createUser(userDTO);
             return ResponseEntity.ok(response);
-        }catch (UserException e){
-            if (e.getStatus() == 409){
+        } catch (UserException e) {
+            if (e.getStatus() == 409) {
                 return ResponseEntity.status(409).body(e.getMessage());
-            }else{
+            } else {
                 return ResponseEntity.status(500).body(e.getMessage());
             }
         }
     }
 
+    @Operation(summary = "Actualizar un usuario", description = "Actualiza la información de un usuario existente identificado por su ID.", responses = {
+            @ApiResponse(responseCode = "200", description = "Usuario actualizado con éxito", content = @Content(mediaType = "application/json")),
+            @ApiResponse(responseCode = "404", description = "Usuario no encontrado", content = @Content(mediaType = "application/json")),
+            @ApiResponse(responseCode = "400", description = "Solicitud inválida", content = @Content(mediaType = "application/json")),
+            @ApiResponse(responseCode = "500", description = "Error interno del servidor", content = @Content(mediaType = "application/json"))
+    })
     @PutMapping("/update/{userId}")
     public ResponseEntity<?> updateUser(@PathVariable String userId, @RequestBody User userDTO) {
         return ResponseEntity.ok(keycloakService.updateUser(userId, userDTO));
     }
 
+    @Operation(summary = "Eliminar un usuario", description = "Elimina un usuario del sistema identificado por su ID.", responses = {
+            @ApiResponse(responseCode = "200", description = "Usuario eliminado con éxito", content = @Content(mediaType = "application/json")),
+            @ApiResponse(responseCode = "404", description = "Usuario no encontrado", content = @Content(mediaType = "application/json")),
+            @ApiResponse(responseCode = "500", description = "Error interno del servidor", content = @Content(mediaType = "application/json"))
+    })
     @DeleteMapping("/delete/{userId}")
     public ResponseEntity<?> deleteUser(@PathVariable String userId) {
         keycloakService.deleteUser(userId);
         return ResponseEntity.ok("User deleted successfully");
     }
 
+    @Operation(summary = "Obtener información del usuario actual", description = "Recupera los detalles del usuario autenticado utilizando el token de autorización proporcionado en el encabezado.", responses = {
+            @ApiResponse(responseCode = "200", description = "Información del usuario recuperada con éxito", content = @Content(mediaType = "application/json")),
+            @ApiResponse(responseCode = "401", description = "No autorizado o token inválido", content = @Content(mediaType = "application/json")),
+            @ApiResponse(responseCode = "500", description = "Error interno al recuperar la información del usuario", content = @Content(mediaType = "application/json"))
+    })
     @PreAuthorize("hasRole('user_client') or hasRole('admin_client')")
     @GetMapping("/getCurrentUser")
-    public UserResponse obtenerUsername(@RequestHeader("Authorization") String authorizationHeader) throws NoSuchAlgorithmException, InvalidKeySpecException {
+    public UserResponse obtenerUsername(@RequestHeader("Authorization") String authorizationHeader)
+            throws NoSuchAlgorithmException, InvalidKeySpecException {
         return userMapper.toUserResponse(authService.getCurrentUser(authorizationHeader));
     }
 
