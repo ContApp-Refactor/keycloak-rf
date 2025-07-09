@@ -1,13 +1,13 @@
 {"properties": [
   {
-    "name": "jwt.auth.converter.resource-id",
-    "type": "java.lang.String",
-    "description": "A description for 'jwt.auth.converter.resource-id'"
-  },
-  {
     "name": "jwt.auth.converter.principle-attribute",
     "type": "java.lang.String",
     "description": "A description for 'jwt.auth.converter.principle-attribute'"
+  },
+  {
+    "name": "jwt.auth.converter.resource-id",
+    "type": "java.lang.String",
+    "description": "A description for 'jwt.auth.converter.resource-id'"
   },
   {
     "name": "jwt.public.key",
@@ -18,6 +18,26 @@
     "name": "jwt.token.url",
     "type": "java.lang.String",
     "description": "A description for 'jwt.token.url'"
+  },
+  {
+    "name": "keycloak.admin",
+    "type": "java.lang.String",
+    "description": "A description for 'keycloak.admin'"
+  },
+  {
+    "name": "keycloak.password",
+    "type": "java.lang.String",
+    "description": "A description for 'keycloak.password'"
+  },
+  {
+    "name": "keycloak.user.console",
+    "type": "java.lang.String",
+    "description": "A description for 'keycloak.user.console'"
+  },
+  {
+    "name": "keycloak.client.secret",
+    "type": "java.lang.String",
+    "description": "A description for 'keycloak.client.secret'"
   },
   {
     "name": "keycloak.server.url",
@@ -33,25 +53,5 @@
     "name": "keycloak.realm.master",
     "type": "java.lang.String",
     "description": "A description for 'keycloak.realm.master'"
-  },
-  {
-    "name": "keycloak.admin",
-    "type": "java.lang.String",
-    "description": "A description for 'keycloak.admin'"
-  },
-  {
-    "name": "keycloak.password",
-    "type": "java.lang.String",
-    "description": "A description for 'keycloak.password'"
-  },
-  {
-    "name": "keycloak.client.secret",
-    "type": "java.lang.String",
-    "description": "A description for 'keycloak.client.secret'"
-  },
-  {
-    "name": "keycloak.user.console",
-    "type": "java.lang.String",
-    "description": "A description for 'keycloak.user.console'"
   }
 ]}
