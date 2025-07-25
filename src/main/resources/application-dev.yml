@@ -1,0 +1,53 @@
+spring:
+  application:
+    name: keycloak
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${KEYCLOAK_ISSUER_URI}
+          jwk-set-uri: ${KEYCLOAK_JWK_SET_URI}
+logging:
+  level:
+    org:
+      Keycloak: DEBUG
+
+jwt:
+  auth:
+    converter:
+      principle-attribute: ${PRINCIPLE_ATTRIBUTE}
+      resource-id: ${RESOURCE_ID}
+  public:
+    key: ${JWT_PUBLIC_KEY}
+  token:
+    url: ${JWT_TOKEN_URL}
+
+keycloak:
+  admin: ${KEYCLOAK_ADMIN}
+  password: ${KEYCLOAK_PASSWORD}
+  user:
+    console: ${KEYCLOAK_USER_CONSOLE}
+  client:
+    secret: ${KEYCLOAK_CLIENT_SECRET}
+  server:
+    url: ${KEYCLOAK_SERVER_URL}
+  realm: 
+    name: ${KEYCLOAK_REALM_NAME}
+    master: ${KEYCLOAK_REALM_MASTER}
+
+server:
+  port: ${PORT:0}
+
+eureka:
+  instance:
+    instance-id: "${spring.application.name}:${random.uuid}"
+    prefer-ip-address: true
+  client:
+    service-url:
+      defaultZone: ${EUREKA_URL:http://localhost:8761/eureka/}
+      
+management:
+  endpoint:
+    health:
+      probes:
+        enabled: true
