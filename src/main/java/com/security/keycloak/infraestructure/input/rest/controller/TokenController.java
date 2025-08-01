@@ -19,7 +19,7 @@ import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 
 @RestController
-@RequestMapping("/keycloak/token")
+@RequestMapping("/api/keycloak/token")
 @CrossOrigin("*")
 public class TokenController {
 

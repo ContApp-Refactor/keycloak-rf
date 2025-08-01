@@ -10,7 +10,7 @@ import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 
 @RestController
-@RequestMapping("/keycloak/test")
+@RequestMapping("/api/keycloak/test")
 public class TestController {
 
     @Operation(summary = "Prueba para administradores", description = "Endpoint de prueba accesible únicamente para usuarios con el rol de administrador.", responses = {

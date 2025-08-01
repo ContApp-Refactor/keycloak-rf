@@ -30,7 +30,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 
 @RestController
 @PreAuthorize("hasRole('admin_client')")
-@RequestMapping("/keycloak")
+@RequestMapping("/api/keycloak")
 @CrossOrigin("*")
 public class KeycloakController {
 

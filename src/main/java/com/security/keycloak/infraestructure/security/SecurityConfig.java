@@ -26,7 +26,7 @@ public class SecurityConfig {
                 .csrf(csrf -> csrf.disable())
                  // Configura las reglas de autorización de solicitudes HTTP.
                 .authorizeHttpRequests(http -> http
-                    .requestMatchers("/keycloak/**","/swagger-ui/**","/v3/api-docs/**","/actuator/**").permitAll()
+                    .requestMatchers("/api/keycloak/**","/swagger-ui/**","/v3/api-docs/**","/actuator/**").permitAll()
                     .anyRequest()
                     .authenticated())
                 // Configura el servidor de recursos OAuth2 para usar JWT.
