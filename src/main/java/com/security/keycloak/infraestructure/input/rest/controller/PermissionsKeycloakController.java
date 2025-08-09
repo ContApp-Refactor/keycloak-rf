@@ -1,0 +1,48 @@
+package com.security.keycloak.infraestructure.input.rest.controller;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+import com.security.keycloak.application.output.IPermissionsKeycloakOutputPort;
+import com.security.keycloak.infraestructure.input.rest.data.request.AddPolicyToPermissionsRequest;
+
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.media.Content;
+
+@RestController
+@PreAuthorize("hasRole('admin_client')")
+@RequestMapping("/api/keycloak/permissions")
+public class PermissionsKeycloakController {
+
+    @Autowired
+    private IPermissionsKeycloakOutputPort permissionsKeycloakService;
+
+
+    @Operation(summary = "Obtener todos los permisos", description = "Recupera una lista de todos los nombres de los permisos registrados en el sistema.", responses = {
+            @ApiResponse(responseCode = "200", description = "Lista de permisos recuperada con éxito", content = @Content(mediaType = "application/json")),
+            @ApiResponse(responseCode = "500", description = "Error interno al recuperar los permisos", content = @Content(mediaType = "application/json"))
+    })
+    @GetMapping("/findAll")
+    public ResponseEntity<?> findAllPermissions() {
+        return ResponseEntity.ok(permissionsKeycloakService.findAllPermissions());
+    }
+
+    @PutMapping("/updatePermissions")
+    public ResponseEntity<?> addPolicyToPermissions(@RequestBody AddPolicyToPermissionsRequest request) {
+        boolean success = permissionsKeycloakService.addPolicytoPermissions(request.getPermissionNames(), request.getRoleName());
+        if (success) {
+            return ResponseEntity.ok("Permisos asignados con éxito");
+        } else {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("No se pudo asignar los permisos o el rol no existe.");
+        }
+    }
+
+}

@@ -108,7 +108,7 @@ public class KeycloakProvider implements IRealmResourceOutputPort , IKeycloakTok
     @SuppressWarnings("unchecked")
     @Override
     public String getToken(Auth auth) throws JsonMappingException, JsonProcessingException {
-        
+
         // Preparar los datos del formulario para la solicitud de token
         MultiValueMap<String, String> formData = new LinkedMultiValueMap<>();
         formData.add("client_id", CLIENT_ID);
@@ -116,7 +116,7 @@ public class KeycloakProvider implements IRealmResourceOutputPort , IKeycloakTok
         formData.add("username", auth.getUsername());
         formData.add("password", auth.getPassword());
         formData.add("client_secret", CLIENT_SECRET);
-        
+
         // Configurar los encabezados de la solicitud
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
@@ -125,7 +125,7 @@ public class KeycloakProvider implements IRealmResourceOutputPort , IKeycloakTok
         HttpEntity<MultiValueMap<String, String>> requestEntity = new HttpEntity<>(formData, headers);
 
         ResponseEntity<String> response = new RestTemplate().postForEntity(tokenUrl, requestEntity, String.class);
-        
+
         String responseBody = response.getBody();
 
         // Obtener el token de acceso del mapa de respuesta
@@ -133,21 +133,48 @@ public class KeycloakProvider implements IRealmResourceOutputPort , IKeycloakTok
         Map<String, Object> responseMap = mapper.readValue(responseBody, Map.class);
         String accessToken = (String) responseMap.get("access_token");
 
+        String rptToken = getTokenRPT(accessToken);
+
         // Obtener los tiempos de expiración del token de acceso y del token de actualización
         Object expiresInObject = responseMap.get("expires_in");
         Object refreshExpires = responseMap.get("refresh_expires_in");
-   
-         // Crear un nuevo mapa para almacenar la información del token de acceso
+
+        // Crear un nuevo mapa para almacenar la información del token de acceso
         Map<String, Object> accessTokenInfo = new HashMap<>();
-        accessTokenInfo.put("access_token", accessToken);
+        accessTokenInfo.put("access_token", rptToken);
         accessTokenInfo.put("expires_in", expiresInObject);
         accessTokenInfo.put("refresh_expires_in", refreshExpires);
-    
+
         // Convertir el mapa de información del token de acceso a una cadena JSON
         String accessTokenJson = mapper.writeValueAsString(accessTokenInfo);
         return accessTokenJson;
     }
+    
+    @SuppressWarnings("unchecked")
+    public String getTokenRPT(String token) throws JsonMappingException, JsonProcessingException {
 
-    
-    
+        // Preparar los datos del formulario para la solicitud de token
+        MultiValueMap<String, String> formData = new LinkedMultiValueMap<>();
+        formData.add("grant_type", "urn:ietf:params:oauth:grant-type:uma-ticket");
+        formData.add("audience", CLIENT_ID);
+
+        // Configurar los encabezados de la solicitud
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
+        headers.set("Authorization", "Bearer " + token);
+
+         // Crear la entidad de la solicitud HTTP con los datos del formulario y los encabezados
+        HttpEntity<MultiValueMap<String, String>> requestEntity = new HttpEntity<>(formData, headers);
+
+        ResponseEntity<String> response = new RestTemplate().postForEntity(tokenUrl, requestEntity, String.class);
+
+        String responseBody = response.getBody();
+
+        // Obtener el token de acceso del mapa de respuesta
+        ObjectMapper mapper = new ObjectMapper();
+        Map<String, Object> responseMap = mapper.readValue(responseBody, Map.class);
+        String accessToken = (String) responseMap.get("access_token");
+
+        return accessToken;
+    }
 }
