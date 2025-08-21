@@ -35,14 +35,32 @@ public class PermissionsKeycloakController {
         return ResponseEntity.ok(permissionsKeycloakService.findAllPermissions());
     }
 
+    @Operation(summary = "Agregar política a permisos", description = "Asocia una política a una lista de permisos", responses = {
+            @ApiResponse(responseCode = "200", description = "Política agregada con éxito a los permisos", content = @Content(mediaType = "application/json")),
+            @ApiResponse(responseCode = "400", description = "Solicitud incorrecta", content = @Content(mediaType = "application/json")),
+            @ApiResponse(responseCode = "404", description = "Permisos no encontrados", content = @Content(mediaType = "application/json"))
+    })
     @PutMapping("/updatePermissions")
     public ResponseEntity<?> addPolicyToPermissions(@RequestBody AddPolicyToPermissionsRequest request) {
-        boolean success = permissionsKeycloakService.addPolicytoPermissions(request.getPermissionNames(), request.getRoleName());
+        boolean success = permissionsKeycloakService.addPolicytoPermissions(request.getPermissionNames(),
+                request.getRoleName());
         if (success) {
             return ResponseEntity.ok("Permisos asignados con éxito");
         } else {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("No se pudo asignar los permisos o el rol no existe.");
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body("No se pudo asignar los permisos o el rol no existe.");
         }
     }
+
+
+    @Operation(summary = "Obtener roles con permisos", description = "Devuelve un mapa de roles y sus permisos asociados", responses = {
+            @ApiResponse(responseCode = "200", description = "Roles y permisos obtenidos exitosamente", content = @Content(mediaType = "application/json")),
+            @ApiResponse(responseCode = "500", description = "Error interno al recuperar los roles y permisos", content = @Content(mediaType = "application/json"))
+    })
+    @GetMapping("/rolesWithPermissions")
+    public ResponseEntity<?> getRolesWithPermissions() {
+        return ResponseEntity.ok(permissionsKeycloakService.getRolesWithPermissions());
+    }
+
 
 }

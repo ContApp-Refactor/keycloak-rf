@@ -1,6 +1,7 @@
 package com.security.keycloak.application.service;
 
 import java.util.List;
+import java.util.Map;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -23,4 +24,10 @@ public class PermissionsKeycloakService implements IPermissionsKeycloakInputPort
     public boolean addPolicytoPermissions(List<String> permissions, String roleName) {
         return permissionsKeycloakOutputPort.addPolicytoPermissions(permissions, roleName);
     }
+
+    @Override
+    public Map<String, List<String>> getRolesWithPermissions() {
+        return permissionsKeycloakOutputPort.getRolesWithPermissions();
+    }
+
 }
