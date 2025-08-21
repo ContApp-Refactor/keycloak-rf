@@ -1,6 +1,7 @@
 package com.security.keycloak.application.input;
 
 import java.util.List;
+import java.util.Map;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
@@ -22,6 +23,13 @@ public interface IPermissionsKeycloakInputPort {
         @ApiResponse(responseCode = "400", description = "Solicitud incorrecta"), 
         @ApiResponse(responseCode = "404", description = "Permisos no encontrados") 
     })
-    boolean addPolicytoPermissions(List<String> permissions, String roleName);    
+    boolean addPolicytoPermissions(List<String> permissions, String roleName);
     
+    
+    @Operation(summary = "Obtener roles con permisos", description = "Devuelve un mapa de roles y sus permisos asociados")
+    @ApiResponses(value = { 
+        @ApiResponse(responseCode = "200", description = "Roles y permisos obtenidos exitosamente"), 
+        @ApiResponse(responseCode = "500", description = "Error interno del servidor") 
+    })
+    Map<String, List<String>> getRolesWithPermissions();
 }

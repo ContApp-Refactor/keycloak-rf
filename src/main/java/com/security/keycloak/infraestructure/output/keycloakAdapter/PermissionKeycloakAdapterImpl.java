@@ -5,7 +5,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -141,6 +140,88 @@ public class PermissionKeycloakAdapterImpl implements IPermissionsKeycloakOutput
         return allSuccessful;
     }
     
+   @Override
+    public Map<String, List<String>> getRolesWithPermissions() {
+        Map<String, List<String>> result = new HashMap<>();
+
+        try {
+            HttpHeaders headers = createAuthHeaders();
+            HttpEntity<Void> entity = new HttpEntity<>(headers);
+
+            // OJO: aquí vamos contra /settings (no /permission)
+            ResponseEntity<String> response = restTemplate.exchange(
+                    RESOURCE_SERVER_SETTINGS_URL,
+                    HttpMethod.GET,
+                    entity,
+                    String.class
+            );
+
+            if (response.getStatusCode() == HttpStatus.OK && response.getBody() != null) {
+                JsonNode root = objectMapper.readTree(response.getBody());
+                JsonNode policiesNode = root.get("policies");
+
+                if (policiesNode != null && policiesNode.isArray()) {
+
+                    // 1) Construir un índice: policyName -> type (para saber cuáles son de tipo "role")
+                    Map<String, String> policyTypeByName = new HashMap<>();
+                    for (JsonNode p : policiesNode) {
+                        String name = p.path("name").asText(null);
+                        String type = p.path("type").asText(null);
+                        if (name != null) {
+                            policyTypeByName.put(name, type);
+                        }
+                    }
+
+                    // 2) Recorrer las policies de tipo "resource" (que representan "permisos")
+                    for (JsonNode policy : policiesNode) {
+                        if (!"resource".equals(policy.path("type").asText())) continue;
+
+                        String permissionName = policy.path("name").asText();
+                        if ("Default Permission".equals(permissionName)) continue;
+
+                        JsonNode configNode = policy.path("config");
+                        if (configNode.isMissingNode()) continue;
+
+                        // applyPolicies viene como STRING JSON con un arreglo
+                        String applyPoliciesJson = configNode.path("applyPolicies").asText("[]");
+                        JsonNode applyPoliciesArray = objectMapper.readTree(applyPoliciesJson);
+
+                        if (applyPoliciesArray.isArray()) {
+                            for (JsonNode policyNameNode : applyPoliciesArray) {
+                                String policyName = policyNameNode.asText();
+
+                                // Solo considerar policies de tipo "role"
+                                if (!"role".equals(policyTypeByName.get(policyName))) continue;
+
+                                // Convención: "<RoleName> Policy" -> "<RoleName>"
+                                String roleName = policyName.endsWith(" Policy")
+                                        ? policyName.substring(0, policyName.length() - " Policy".length())
+                                        : policyName;
+
+                                // Agregar sin duplicar
+                                List<String> perms = result.computeIfAbsent(roleName, k -> new ArrayList<>());
+                                if (!perms.contains(permissionName)) {
+                                    perms.add(permissionName);
+                                }
+                            }
+                        }
+                    }
+                } else {
+                    log.warn("No se encontraron 'policies' en settings del resource-server.");
+                }
+            } else {
+                log.warn("No se pudo obtener settings del resource-server. Status: {}", response.getStatusCode());
+            }
+
+        } catch (Exception e) {
+            log.error("Error al construir el mapa Rol→Permisos: {}", e.getMessage(), e);
+        }
+
+        return result;
+    }
+
+
+
     public List<String> getPoliciesByPermissionName(String permissionName) {
         List<String> policies = new ArrayList<>();
 
