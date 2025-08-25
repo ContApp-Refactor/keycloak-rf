@@ -20,19 +20,16 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class PermissionKeycloakAdapterImpl implements IPermissionsKeycloakOutputPort {
 
-    // Configuración base
     private final String REALM = "oauth2-realm";
     private final String CLIENT_ID = "341fd012-a3d7-4223-8cf9-abd4292fd4bb";
     private final String ADMIN_REALM_URL = "http://contables.unicauca.edu.co/auth/admin/realms/" + REALM;
 
-    // URLs para autorización
     private final String RESOURCE_SERVER_URL = ADMIN_REALM_URL + "/clients/" + CLIENT_ID + "/authz/resource-server";
     private final String RESOURCE_SERVER_SETTINGS_URL = RESOURCE_SERVER_URL + "/settings";
     private final String PERMISSIONS_LIST_URL = RESOURCE_SERVER_URL + "/permission";
     private final String POLICY_ROLE_URL = RESOURCE_SERVER_URL + "/policy/role";
     private final String PERMISSION_BY_ID_URL_TEMPLATE = RESOURCE_SERVER_URL + "/permission/%s";
 
-    // URLs para gestión de roles
     private final String ROLES_URL = ADMIN_REALM_URL + "/roles";
     private final String ROLE_BY_NAME_URL = ROLES_URL + "/%s";
 
@@ -41,7 +38,7 @@ public class PermissionKeycloakAdapterImpl implements IPermissionsKeycloakOutput
 
     @Autowired
     private PermissionsKeycloakProvider keycloakProvider;
-    
+
     @Override
     public List<String> findAllPermissions() {
         List<String> permissionNames = new ArrayList<>();
@@ -100,35 +97,7 @@ public class PermissionKeycloakAdapterImpl implements IPermissionsKeycloakOutput
                     currentPolicies.add(newPolicyName);
                 }
 
-                Map<String, Object> updatePayload = new HashMap<>();
-                updatePayload.put("name", permissionName);
-                updatePayload.put("policies", currentPolicies);
-
-                String jsonBody = objectMapper.writeValueAsString(updatePayload);
-                log.info("JSON enviado para actualizar el permiso '{}': {}", permissionName, jsonBody);
-
-                HttpHeaders headers = createJsonAuthHeaders();
-                HttpEntity<String> entity = new HttpEntity<>(jsonBody, headers);
-
-                String permissionId = findPermissionIdByName(permissionName);
-                if (permissionId == null) {
-                    log.warn("No se encontró el ID para el permiso '{}'. Se omite.", permissionName);
-                    allSuccessful = false;
-                    continue;
-                }
-
-                String updateUrl = String.format(PERMISSION_BY_ID_URL_TEMPLATE, permissionId);
-                ResponseEntity<Void> response = restTemplate.exchange(
-                        updateUrl,
-                        HttpMethod.PUT,
-                        entity,
-                        Void.class
-                );
-
-                if (!isSuccessful((HttpStatus) response.getStatusCode())) {
-                    log.warn("Falló la actualización del permiso '{}': Status {}", permissionName, response.getStatusCode());
-                    allSuccessful = false;
-                }
+                updatePermissionWithPolicies(permissionName, currentPolicies);
 
             } catch (Exception e) {
                 log.error("Error al actualizar el permiso '{}' con la política '{}': {}",
@@ -139,8 +108,8 @@ public class PermissionKeycloakAdapterImpl implements IPermissionsKeycloakOutput
 
         return allSuccessful;
     }
-    
-   @Override
+
+    @Override
     public Map<String, List<String>> getRolesWithPermissions() {
         Map<String, List<String>> result = new HashMap<>();
 
@@ -148,13 +117,11 @@ public class PermissionKeycloakAdapterImpl implements IPermissionsKeycloakOutput
             HttpHeaders headers = createAuthHeaders();
             HttpEntity<Void> entity = new HttpEntity<>(headers);
 
-            // OJO: aquí vamos contra /settings (no /permission)
             ResponseEntity<String> response = restTemplate.exchange(
                     RESOURCE_SERVER_SETTINGS_URL,
                     HttpMethod.GET,
                     entity,
-                    String.class
-            );
+                    String.class);
 
             if (response.getStatusCode() == HttpStatus.OK && response.getBody() != null) {
                 JsonNode root = objectMapper.readTree(response.getBody());
@@ -162,7 +129,6 @@ public class PermissionKeycloakAdapterImpl implements IPermissionsKeycloakOutput
 
                 if (policiesNode != null && policiesNode.isArray()) {
 
-                    // 1) Construir un índice: policyName -> type (para saber cuáles son de tipo "role")
                     Map<String, String> policyTypeByName = new HashMap<>();
                     for (JsonNode p : policiesNode) {
                         String name = p.path("name").asText(null);
@@ -172,17 +138,18 @@ public class PermissionKeycloakAdapterImpl implements IPermissionsKeycloakOutput
                         }
                     }
 
-                    // 2) Recorrer las policies de tipo "resource" (que representan "permisos")
                     for (JsonNode policy : policiesNode) {
-                        if (!"resource".equals(policy.path("type").asText())) continue;
+                        if (!"resource".equals(policy.path("type").asText()))
+                            continue;
 
                         String permissionName = policy.path("name").asText();
-                        if ("Default Permission".equals(permissionName)) continue;
+                        if ("Default Permission".equals(permissionName))
+                            continue;
 
                         JsonNode configNode = policy.path("config");
-                        if (configNode.isMissingNode()) continue;
+                        if (configNode.isMissingNode())
+                            continue;
 
-                        // applyPolicies viene como STRING JSON con un arreglo
                         String applyPoliciesJson = configNode.path("applyPolicies").asText("[]");
                         JsonNode applyPoliciesArray = objectMapper.readTree(applyPoliciesJson);
 
@@ -190,15 +157,13 @@ public class PermissionKeycloakAdapterImpl implements IPermissionsKeycloakOutput
                             for (JsonNode policyNameNode : applyPoliciesArray) {
                                 String policyName = policyNameNode.asText();
 
-                                // Solo considerar policies de tipo "role"
-                                if (!"role".equals(policyTypeByName.get(policyName))) continue;
+                                if (!"role".equals(policyTypeByName.get(policyName)))
+                                    continue;
 
-                                // Convención: "<RoleName> Policy" -> "<RoleName>"
                                 String roleName = policyName.endsWith(" Policy")
                                         ? policyName.substring(0, policyName.length() - " Policy".length())
                                         : policyName;
 
-                                // Agregar sin duplicar
                                 List<String> perms = result.computeIfAbsent(roleName, k -> new ArrayList<>());
                                 if (!perms.contains(permissionName)) {
                                     perms.add(permissionName);
@@ -220,50 +185,134 @@ public class PermissionKeycloakAdapterImpl implements IPermissionsKeycloakOutput
         return result;
     }
 
+    @Override
+    public boolean updatePermissionsForRole(List<String> newPermissions, String roleName) {
+        String policyName = roleName + " Policy";  
 
-
-    public List<String> getPoliciesByPermissionName(String permissionName) {
-        List<String> policies = new ArrayList<>();
+        boolean allSuccessful = true;
 
         try {
-            HttpHeaders headers = createAuthHeaders();
-            HttpEntity<String> entity = new HttpEntity<>(headers);
+            Map<String, List<String>> rolesWithPerms = getRolesWithPermissions();
+            List<String> currentPermissions = rolesWithPerms.getOrDefault(roleName, new ArrayList<>());
 
-            ResponseEntity<String> response = restTemplate.exchange(
-                    RESOURCE_SERVER_SETTINGS_URL,
-                    HttpMethod.GET,
-                    entity,
-                    String.class);
+            // Calcular diferencias
+            List<String> toAdd = new ArrayList<>(newPermissions);
+            toAdd.removeAll(currentPermissions);
 
-            if (response.getStatusCode() == HttpStatus.OK && response.getBody() != null) {
-                JsonNode root = objectMapper.readTree(response.getBody());
-                JsonNode policiesNode = root.get("policies");
+            List<String> toRemove = new ArrayList<>(currentPermissions);
+            toRemove.removeAll(newPermissions);
 
-                if (policiesNode != null && policiesNode.isArray()) {
-                    for (JsonNode policy : policiesNode) {
-                        if ("resource".equals(policy.get("type").asText()) &&
-                                permissionName.equals(policy.get("name").asText())) {
+            log.info("Permisos a agregar para {}: {}", roleName, toAdd);
+            log.info("Permisos a quitar para {}: {}", roleName, toRemove);
 
-                            String applyPoliciesJson = policy.get("config").get("applyPolicies").asText();
-                            JsonNode applyPoliciesArray = objectMapper.readTree(applyPoliciesJson);
+            // Agregar permisos nuevos
+            for (String permissionName : toAdd) {
+                try {
+                    List<String> currentPolicies = getPoliciesByPermissionName(permissionName);
+                    if (!currentPolicies.contains(policyName)) {
+                        currentPolicies.add(policyName);
+                    }
+                    updatePermissionWithPolicies(permissionName, currentPolicies);
+                } catch (Exception e) {
+                    log.error("Error al asignar permiso {} a {}: {}", permissionName, roleName, e.getMessage());
+                    allSuccessful = false;
+                }
+            }
 
+            // Quitar permisos sobrantes
+            for (String permissionName : toRemove) {
+                try {
+                    List<String> currentPolicies = getPoliciesByPermissionName(permissionName);
+                    if (currentPolicies.contains(policyName)) {
+                        currentPolicies.remove(policyName);
+                    }
+                    updatePermissionWithPolicies(permissionName, currentPolicies);
+                } catch (Exception e) {
+                    log.error("Error al quitar permiso {} de {}: {}", permissionName, roleName, e.getMessage());
+                    allSuccessful = false;
+                }
+            }
+
+        } catch (Exception e) {
+            log.error("Error actualizando permisos de {}: {}", roleName, e.getMessage(), e);
+            return false;
+        }
+
+        return allSuccessful;
+    }
+
+    private void updatePermissionWithPolicies(String permissionName, List<String> policies) throws Exception {
+        Map<String, Object> updatePayload = new HashMap<>();
+        updatePayload.put("name", permissionName);
+        updatePayload.put("policies", policies);
+
+        String jsonBody = objectMapper.writeValueAsString(updatePayload);
+        HttpHeaders headers = createJsonAuthHeaders();
+        HttpEntity<String> entity = new HttpEntity<>(jsonBody, headers);
+
+        String permissionId = findPermissionIdByName(permissionName);
+        if (permissionId == null) {
+            log.warn("No se encontró el ID para el permiso '{}'. Se omite.", permissionName);
+            return;
+        }
+
+        String updateUrl = String.format(PERMISSION_BY_ID_URL_TEMPLATE, permissionId);
+        restTemplate.exchange(updateUrl, HttpMethod.PUT, entity, Void.class);
+    }
+
+    public List<String> getPoliciesByPermissionName(String permissionName) {
+    List<String> policies = new ArrayList<>();
+
+    try {
+        HttpHeaders headers = createAuthHeaders();
+        HttpEntity<String> entity = new HttpEntity<>(headers);
+
+        ResponseEntity<String> response = restTemplate.exchange(
+                RESOURCE_SERVER_SETTINGS_URL,
+                HttpMethod.GET,
+                entity,
+                String.class);
+
+        if (response.getStatusCode() == HttpStatus.OK && response.getBody() != null) {
+            JsonNode root = objectMapper.readTree(response.getBody());
+            JsonNode policiesNode = root.get("policies");
+
+            if (policiesNode != null && policiesNode.isArray()) {
+                for (JsonNode policy : policiesNode) {
+                    if ("resource".equals(policy.path("type").asText()) &&
+                            permissionName.equals(policy.path("name").asText())) {
+
+                        JsonNode configNode = policy.path("config");
+                        if (configNode == null || configNode.isMissingNode()) {
+                            log.info("El permiso '{}' no tiene configuración de políticas", permissionName);
+                            return policies; // vacío
+                        }
+
+                        String applyPoliciesJson = configNode.path("applyPolicies").asText("[]");
+                        JsonNode applyPoliciesArray = objectMapper.readTree(applyPoliciesJson);
+
+                        if (applyPoliciesArray.isArray()) {
                             for (JsonNode policyName : applyPoliciesArray) {
                                 policies.add(policyName.asText());
                             }
                         }
+                        return policies; // ya encontramos el permiso, devolvemos lo que haya
                     }
                 }
-            } else {
-                log.warn("No se pudo obtener la configuración del resource-server, status: {}",
-                        response.getStatusCode());
             }
-        } catch (Exception e) {
-            log.error("Error al obtener las políticas del permiso {}: {}", permissionName, e.getMessage(), e);
+        } else {
+            log.warn("No se pudo obtener la configuración del resource-server, status: {}",
+                    response.getStatusCode());
         }
-
-        return policies;
+    } catch (Exception e) {
+        log.error("Error al obtener las políticas del permiso {}: {}", permissionName, e.getMessage(), e);
     }
-    
+
+    // Si no encontró nada o no tiene policies, retorna vacío sin error
+    return policies;
+}
+
+
     private String findPermissionIdByName(String permissionName) {
         try {
             HttpHeaders headers = createAuthHeaders();
@@ -369,7 +418,6 @@ public class PermissionKeycloakAdapterImpl implements IPermissionsKeycloakOutput
         return null;
     }
 
-    // Métodos auxiliares para crear headers
     private HttpHeaders createAuthHeaders() {
         HttpHeaders headers = new HttpHeaders();
         headers.setBearerAuth(keycloakProvider.getAdminAccessToken());
@@ -381,11 +429,4 @@ public class PermissionKeycloakAdapterImpl implements IPermissionsKeycloakOutput
         headers.setContentType(MediaType.APPLICATION_JSON);
         return headers;
     }
-
-    private boolean isSuccessful(HttpStatus status) {
-        return status == HttpStatus.NO_CONTENT ||
-                status == HttpStatus.OK ||
-                status == HttpStatus.CREATED;
-    }
-    
 }

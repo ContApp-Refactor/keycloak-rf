@@ -30,4 +30,9 @@ public class PermissionsKeycloakService implements IPermissionsKeycloakInputPort
         return permissionsKeycloakOutputPort.getRolesWithPermissions();
     }
 
+    @Override
+    public boolean updatePermissionsForRole(List<String> newPermissions, String roleName) {
+        return permissionsKeycloakOutputPort.updatePermissionsForRole(newPermissions, roleName);
+    }
+
 }
