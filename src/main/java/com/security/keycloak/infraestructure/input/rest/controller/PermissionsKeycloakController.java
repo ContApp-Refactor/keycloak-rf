@@ -40,7 +40,7 @@ public class PermissionsKeycloakController {
             @ApiResponse(responseCode = "400", description = "Solicitud incorrecta", content = @Content(mediaType = "application/json")),
             @ApiResponse(responseCode = "404", description = "Permisos no encontrados", content = @Content(mediaType = "application/json"))
     })
-    @PutMapping("/updatePermissions")
+    @PutMapping("/assignRoleToPermissions")
     public ResponseEntity<?> addPolicyToPermissions(@RequestBody AddPolicyToPermissionsRequest request) {
         boolean success = permissionsKeycloakService.addPolicytoPermissions(request.getPermissionNames(),
                 request.getRoleName());
@@ -60,6 +60,23 @@ public class PermissionsKeycloakController {
     @GetMapping("/rolesWithPermissions")
     public ResponseEntity<?> getRolesWithPermissions() {
         return ResponseEntity.ok(permissionsKeycloakService.getRolesWithPermissions());
+    }
+
+    @Operation(summary = "Actualizar permisos para un rol", description = "Actualiza la lista de permisos para un rol específico", responses = {
+            @ApiResponse(responseCode = "200", description = "Permisos actualizados exitosamente para el rol", content = @Content(mediaType = "application/json")),
+            @ApiResponse(responseCode = "400", description = "Solicitud incorrecta", content = @Content(mediaType = "application/json")),
+            @ApiResponse(responseCode = "404", description = "Rol no encontrado", content = @Content(mediaType = "application/json"))
+    })
+    @PutMapping("/updatePermissionsForRole")
+    public ResponseEntity<?> updatePermissionsForRole(@RequestBody AddPolicyToPermissionsRequest request) {
+        boolean success = permissionsKeycloakService.updatePermissionsForRole(request.getPermissionNames(),
+                request.getRoleName());
+        if (success) {
+            return ResponseEntity.ok("Permisos actualizados con éxito");
+        } else {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body("No se pudo actualizar los permisos o el rol no existe.");
+        }
     }
 
 

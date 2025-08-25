@@ -32,4 +32,11 @@ public interface IPermissionsKeycloakInputPort {
         @ApiResponse(responseCode = "500", description = "Error interno del servidor") 
     })
     Map<String, List<String>> getRolesWithPermissions();
+
+    @ApiResponses(value = { 
+        @ApiResponse(responseCode = "200", description = "Permisos actualizados exitosamente para el rol"), 
+        @ApiResponse(responseCode = "400", description = "Solicitud incorrecta"),
+        @ApiResponse(responseCode = "404", description = "Rol no encontrado")
+    })
+    boolean updatePermissionsForRole(List<String> newPermissions, String roleName);
 }
