@@ -28,6 +28,7 @@ keycloak:
   user:
     console: ${KEYCLOAK_USER_CONSOLE}
   client:
+    id: ${KEYCLOAK_CLIENT_ID}
     secret: ${KEYCLOAK_CLIENT_SECRET}
   server:
     url: ${KEYCLOAK_SERVER_URL}
