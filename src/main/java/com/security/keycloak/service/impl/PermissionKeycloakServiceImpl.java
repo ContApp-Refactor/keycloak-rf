@@ -7,7 +7,7 @@ import java.util.Map;
 
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
-import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.*;
 
 import com.fasterxml.jackson.databind.JsonNode;
@@ -16,30 +16,47 @@ import com.security.keycloak.controller.exception.ConflictException;
 import com.security.keycloak.controller.exception.ResourceNotFoundException;
 import com.security.keycloak.service.IPermissionKeycloakService;
 import com.security.keycloak.util.KeycloakProvider;
+
+import jakarta.annotation.PostConstruct;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 @Service
 @Slf4j
+@RequiredArgsConstructor
 public class PermissionKeycloakServiceImpl implements IPermissionKeycloakService {
 
-    private final String REALM = "oauth2-realm";
-    private final String CLIENT_ID = "341fd012-a3d7-4223-8cf9-abd4292fd4bb";
-    private final String ADMIN_REALM_URL = "http://contables.unicauca.edu.co/auth/admin/realms/" + REALM;
+    @Value("${keycloak.realm.name}")
+    private String REALM;
 
-    private final String RESOURCE_SERVER_URL = ADMIN_REALM_URL + "/clients/" + CLIENT_ID + "/authz/resource-server";
-    private final String RESOURCE_SERVER_SETTINGS_URL = RESOURCE_SERVER_URL + "/settings";
-    private final String PERMISSIONS_LIST_URL = RESOURCE_SERVER_URL + "/permission";
-    private final String POLICY_ROLE_URL = RESOURCE_SERVER_URL + "/policy/role";
-    private final String PERMISSION_BY_ID_URL_TEMPLATE = RESOURCE_SERVER_URL + "/permission/%s";
+    @Value("${keycloak.client.id}")
+    private String CLIENT_ID;
 
-    private final String ROLES_URL = ADMIN_REALM_URL + "/roles";
-    private final String ROLE_BY_NAME_URL = ROLES_URL + "/%s";
+    private String ADMIN_REALM_URL;
+    private String RESOURCE_SERVER_URL;
+    private String RESOURCE_SERVER_SETTINGS_URL;
+    private String PERMISSIONS_LIST_URL;
+    private String POLICY_ROLE_URL;
+    private String PERMISSION_BY_ID_URL_TEMPLATE;
+    private String ROLES_URL;
+    private String ROLE_BY_NAME_URL;
 
     private final RestTemplate restTemplate = new RestTemplate();
     private final ObjectMapper objectMapper = new ObjectMapper();
 
-    @Autowired
-    private KeycloakProvider keycloakProvider;
+    private final KeycloakProvider keycloakProvider;
+
+    @PostConstruct
+    public void init() {
+        this.ADMIN_REALM_URL = "http://contables.unicauca.edu.co/auth/admin/realms/" + REALM;
+        this.RESOURCE_SERVER_URL = ADMIN_REALM_URL + "/clients/" + CLIENT_ID + "/authz/resource-server";
+        this.RESOURCE_SERVER_SETTINGS_URL = RESOURCE_SERVER_URL + "/settings";
+        this.PERMISSIONS_LIST_URL = RESOURCE_SERVER_URL + "/permission";
+        this.POLICY_ROLE_URL = RESOURCE_SERVER_URL + "/policy/role";
+        this.PERMISSION_BY_ID_URL_TEMPLATE = RESOURCE_SERVER_URL + "/permission/%s";
+        this.ROLES_URL = ADMIN_REALM_URL + "/roles";
+        this.ROLE_BY_NAME_URL = ROLES_URL + "/%s";
+    }    
 
     @Override
     public List<String> findAllPermissions() {

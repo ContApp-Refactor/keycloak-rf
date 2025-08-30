@@ -8,7 +8,6 @@ import org.keycloak.admin.client.resource.RoleResource;
 import org.keycloak.admin.client.resource.RolesResource;
 import org.keycloak.representations.idm.RoleRepresentation;
 import org.keycloak.representations.idm.UserRepresentation;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import com.security.keycloak.controller.exception.ConflictException;
@@ -19,14 +18,15 @@ import com.security.keycloak.util.KeycloakProvider;
 
 import jakarta.ws.rs.ClientErrorException;
 import jakarta.ws.rs.NotFoundException;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 @Service
 @Slf4j
+@RequiredArgsConstructor
 public class ProfileKeycloakServiceImpl implements IProfileKeycloakService {
 
-    @Autowired
-    private KeycloakProvider keycloakProvider;
+    private final KeycloakProvider keycloakProvider;
 
     @Override
     public List<ProfileDTO> findAllProfiles() {
