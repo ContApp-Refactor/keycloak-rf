@@ -17,12 +17,31 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 
 import lombok.extern.slf4j.Slf4j;
 
+/**
+ * Manejador global de excepciones para la aplicación.
+ * <p>
+ * Esta clase centraliza el tratamiento de excepciones lanzadas en los controladores,
+ * generando respuestas consistentes con un objeto {@link ErrorResponse}.
+ * </p>
+ * <p>
+ * Proporciona manejadores para errores comunes como validación, acceso denegado,
+ * recurso no encontrado, conflictos y errores internos del servidor.
+ * </p>
+ */
 @Slf4j
 @ControllerAdvice
 public class GlobalExceptionHandler {
 
     /**
-     * Manejo de errores de validación de @Valid en RequestBody → 400
+     * Manejo de errores de validación de {@code @Valid} en {@code @RequestBody}.
+     * <p>
+     * Se activa cuando un objeto enviado en el cuerpo de la petición no cumple
+     * con las validaciones definidas. Devuelve un código de estado 400 (Bad Request).
+     * </p>
+     *
+     * @param ex      excepción lanzada por validaciones fallidas.
+     * @param request solicitud HTTP que produjo el error.
+     * @return respuesta con detalles del error de validación.
      */
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<ErrorResponse> handleValidationErrors(
@@ -54,7 +73,16 @@ public class GlobalExceptionHandler {
     }
 
     /**
-     * Manejo de constraint violations (ej. @PathVariable, @RequestParam inválidos) → 400
+     * Manejo de errores de validación en parámetros como {@code @PathVariable}
+     * y {@code @RequestParam}.
+     * <p>
+     * Se activa cuando un parámetro de la URL o de la petición no cumple con
+     * las restricciones establecidas. Devuelve un código de estado 400 (Bad Request).
+     * </p>
+     *
+     * @param ex      excepción de violación de restricción.
+     * @param request solicitud HTTP que produjo el error.
+     * @return respuesta con detalles del error de validación de parámetros.
      */
     @ExceptionHandler(ConstraintViolationException.class)
     public ResponseEntity<ErrorResponse> handleConstraintViolation(
@@ -78,7 +106,15 @@ public class GlobalExceptionHandler {
     }
 
     /**
-     * Manejo de acceso denegado → 403
+     * Manejo de acceso denegado.
+     * <p>
+     * Se activa cuando un usuario intenta acceder a un recurso sin permisos suficientes.
+     * Devuelve un código de estado 403 (Forbidden).
+     * </p>
+     *
+     * @param ex      excepción de acceso denegado.
+     * @param request solicitud HTTP que produjo el error.
+     * @return respuesta con detalles del error de autorización.
      */
     @ExceptionHandler(AccessDeniedException.class)
     public ResponseEntity<ErrorResponse> handleAccessDenied(
@@ -97,7 +133,15 @@ public class GlobalExceptionHandler {
     }
 
     /**
-     * Manejo de recurso no encontrado → 404
+     * Manejo de recurso no encontrado.
+     * <p>
+     * Se activa cuando se intenta acceder a un recurso inexistente.
+     * Devuelve un código de estado 404 (Not Found).
+     * </p>
+     *
+     * @param ex      excepción de recurso no encontrado.
+     * @param request solicitud HTTP que produjo el error.
+     * @return respuesta con detalles del error de recurso inexistente.
      */
     @ExceptionHandler(ResourceNotFoundException.class)
     public ResponseEntity<ErrorResponse> handleNotFound(
@@ -116,8 +160,15 @@ public class GlobalExceptionHandler {
     }
 
     /**
-     * Manejo de conflicto → 409
-     * (ej. nombre duplicado, perfil asignado a usuarios, etc.)
+     * Manejo de conflictos.
+     * <p>
+     * Se activa en casos como duplicidad de datos o reglas de negocio que
+     * impiden completar la operación. Devuelve un código de estado 409 (Conflict).
+     * </p>
+     *
+     * @param ex      excepción de conflicto.
+     * @param request solicitud HTTP que produjo el error.
+     * @return respuesta con detalles del conflicto detectado.
      */
     @ExceptionHandler(ConflictException.class)
     public ResponseEntity<ErrorResponse> handleConflict(
@@ -136,7 +187,15 @@ public class GlobalExceptionHandler {
     }
 
     /**
-     * Manejo genérico → 500
+     * Manejo genérico de excepciones no controladas.
+     * <p>
+     * Se activa para cualquier error inesperado en la aplicación.
+     * Devuelve un código de estado 500 (Internal Server Error).
+     * </p>
+     *
+     * @param ex      excepción genérica.
+     * @param request solicitud HTTP que produjo el error.
+     * @return respuesta con detalles del error interno del servidor.
      */
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorResponse> handleGeneric(
