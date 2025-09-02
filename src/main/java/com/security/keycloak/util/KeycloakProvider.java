@@ -8,12 +8,38 @@ import org.keycloak.admin.client.resource.UsersResource;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
+/**
+ * Proveedor de configuración y cliente de conexión a Keycloak.
+ * <p>
+ * Se encarga de inicializar un cliente {@link Keycloak} utilizando
+ * las credenciales de administración configuradas en el archivo de propiedades.
+ * Proporciona métodos de utilidad para acceder a recursos del realm y usuarios.
+ * </p>
+ */
 @Component
 public class KeycloakProvider {
 
+    /**
+     * Nombre del realm configurado en el sistema.
+     */
     private final String realmName;
+
+    /**
+     * Cliente de administración de Keycloak utilizado para realizar operaciones.
+     */
     private final Keycloak keycloak;
 
+    /**
+     * Constructor que inicializa el cliente de Keycloak con los parámetros de configuración.
+     *
+     * @param serverUrl   URL base del servidor Keycloak.
+     * @param realmMaster Realm maestro utilizado para autenticación administrativa.
+     * @param realmName   Nombre del realm de aplicación.
+     * @param clientId    ID del cliente configurado para administración.
+     * @param clientSecret Secreto del cliente (opcional, puede ser vacío).
+     * @param username    Usuario administrador de consola.
+     * @param password    Contraseña del usuario administrador.
+     */
     public KeycloakProvider(
             @Value("${keycloak.server.url}") String serverUrl,
             @Value("${keycloak.realm.master}") String realmMaster,
@@ -42,14 +68,29 @@ public class KeycloakProvider {
         this.keycloak = builder.build();
     }
 
+    /**
+     * Obtiene el recurso del realm configurado en Keycloak.
+     *
+     * @return recurso {@link RealmResource} del realm.
+     */
     public RealmResource getRealmResource() {
         return keycloak.realm(realmName);
     }
 
+    /**
+     * Obtiene el recurso de usuarios asociado al realm configurado.
+     *
+     * @return recurso {@link UsersResource} del realm.
+     */
     public UsersResource getUserResource() {
         return getRealmResource().users();
     }
 
+    /**
+     * Obtiene el token de acceso del administrador configurado.
+     *
+     * @return token de acceso como {@link String}.
+     */
     public String getAdminAccessToken() {
         return keycloak.tokenManager().getAccessTokenString();
     }

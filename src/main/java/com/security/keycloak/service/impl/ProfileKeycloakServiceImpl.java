@@ -21,6 +21,13 @@ import jakarta.ws.rs.NotFoundException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
+/**
+ * Implementación del servicio de gestión de perfiles en Keycloak.
+ * <p>
+ * Proporciona operaciones para crear, buscar, actualizar y eliminar perfiles (roles)
+ * dentro de un realm de Keycloak, aplicando reglas de negocio y manejo de excepciones.
+ * </p>
+ */
 @Service
 @Slf4j
 @RequiredArgsConstructor
@@ -28,6 +35,12 @@ public class ProfileKeycloakServiceImpl implements IProfileKeycloakService {
 
     private final KeycloakProvider keycloakProvider;
 
+    /**
+     * Obtiene todos los perfiles (roles) disponibles en Keycloak,
+     * excluyendo los roles predeterminados del sistema.
+     *
+     * @return lista de perfiles como {@link ProfileDTO}.
+     */
     @Override
     public List<ProfileDTO> findAllProfiles() {
         List<String> excludedRoles = Arrays.asList(
@@ -50,6 +63,13 @@ public class ProfileKeycloakServiceImpl implements IProfileKeycloakService {
                 .toList();
     }
 
+    /**
+     * Busca un perfil en Keycloak por su identificador.
+     *
+     * @param profileId identificador del perfil.
+     * @return el perfil encontrado como {@link ProfileDTO}.
+     * @throws ResourceNotFoundException si no existe un perfil con ese ID.
+     */
     @Override
     public ProfileDTO findProfileById(String profileId) {
         return keycloakProvider.getRealmResource()
@@ -66,22 +86,30 @@ public class ProfileKeycloakServiceImpl implements IProfileKeycloakService {
                 .orElseThrow(() -> new ResourceNotFoundException("No se encontró el perfil con ID " + profileId));
     }
 
+    /**
+     * Crea un nuevo perfil en Keycloak.
+     * <p>
+     * Verifica previamente que no exista otro perfil con el mismo nombre.
+     * </p>
+     *
+     * @param profileDTO datos del perfil a crear.
+     * @return el perfil creado como {@link ProfileDTO}.
+     * @throws ConflictException         si ya existe un perfil con el mismo nombre.
+     * @throws ResourceNotFoundException si el recurso de Keycloak no se encuentra.
+     */
     @Override
     public ProfileDTO createProfile(ProfileDTO profileDTO) {
         RealmResource realm = keycloakProvider.getRealmResource();
         RolesResource roles = realm.roles();
         String roleName = profileDTO.getName();
 
-        // Verificar existencia por nombre → 409 si ya existe
         try {
             roles.get(roleName).toRepresentation();
             log.error("El nombre de perfil '{}' ya existe", roleName);
             throw new ConflictException("El nombre del perfil ya existe");
         } catch (NotFoundException notExists) {
-            // OK, no existe
         }
 
-        // Crear rol
         RoleRepresentation rep = new RoleRepresentation();
         rep.setName(roleName);
         rep.setDescription(profileDTO.getDescription());
@@ -104,6 +132,16 @@ public class ProfileKeycloakServiceImpl implements IProfileKeycloakService {
         }
     }
 
+    /**
+     * Elimina un perfil de Keycloak.
+     * <p>
+     * Verifica que el perfil no esté asignado a ningún usuario antes de eliminarlo.
+     * </p>
+     *
+     * @param profileId identificador del perfil a eliminar.
+     * @throws ConflictException         si el perfil está asignado a usuarios.
+     * @throws ResourceNotFoundException si el perfil no existe.
+     */
     @Override
     public void deleteProfile(String profileId) {
         RealmResource realm = keycloakProvider.getRealmResource();
@@ -118,7 +156,6 @@ public class ProfileKeycloakServiceImpl implements IProfileKeycloakService {
 
         List<UserRepresentation> users = roleResource.getUserMembers();
         if (users != null && !users.isEmpty()) {
-            // coherente con Swagger: 409
             throw new ConflictException("El perfil está asignado a uno o más usuarios");
         }
 
@@ -133,6 +170,18 @@ public class ProfileKeycloakServiceImpl implements IProfileKeycloakService {
         }
     }
 
+    /**
+     * Actualiza un perfil existente en Keycloak.
+     * <p>
+     * Permite cambiar nombre y descripción, verificando que el nuevo nombre no esté duplicado.
+     * </p>
+     *
+     * @param profileId  identificador del perfil a actualizar.
+     * @param profileDTO nuevos datos del perfil.
+     * @return el perfil actualizado como {@link ProfileDTO}.
+     * @throws ConflictException         si ya existe un perfil con el nuevo nombre.
+     * @throws ResourceNotFoundException si el perfil no existe.
+     */
     @Override
     public ProfileDTO updateProfile(String profileId, ProfileDTO profileDTO) {
         RealmResource realm = keycloakProvider.getRealmResource();
@@ -145,13 +194,11 @@ public class ProfileKeycloakServiceImpl implements IProfileKeycloakService {
         String currentRoleName = existingRole.getName();
         String newRoleName = profileDTO.getName();
 
-        // Si cambia el nombre, verificar duplicado → 409
         if (!currentRoleName.equals(newRoleName)) {
             try {
                 realm.roles().get(newRoleName).toRepresentation();
                 throw new ConflictException("El nombre del perfil ya existe");
             } catch (NotFoundException notExists) {
-                // OK: no existe, se puede renombrar
             }
         }
 
@@ -177,6 +224,12 @@ public class ProfileKeycloakServiceImpl implements IProfileKeycloakService {
         }
     }
 
+    /**
+     * Busca perfiles por su nombre en Keycloak.
+     *
+     * @param name nombre del perfil a buscar.
+     * @return lista de perfiles encontrados como {@link ProfileDTO}.
+     */
     @Override
     public List<ProfileDTO> findProfilesByName(String name) {
         return keycloakProvider.getRealmResource()
