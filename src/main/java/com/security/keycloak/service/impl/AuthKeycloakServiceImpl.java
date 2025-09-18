@@ -10,6 +10,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
@@ -19,6 +20,11 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.RestTemplate;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.stereotype.Service;
+
+import lombok.RequiredArgsConstructor;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonMappingException;
@@ -26,12 +32,21 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.security.keycloak.dtos.AuthDTO;
 import com.security.keycloak.dtos.UserDTO;
 import com.security.keycloak.service.IAuthKeycloakService;
+import com.security.keycloak.util.KeycloakProvider;
+import com.security.keycloak.util.JwtUtils;
 
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 
 @Service
+@RequiredArgsConstructor
 public class AuthKeycloakServiceImpl implements IAuthKeycloakService{
+
+    private final StringRedisTemplate redis;
+    private final KeycloakProvider keycloakProvider;
+    
+    @Value("${app.jwt.blacklist-prefix:jwt:black:}")
+    private String blacklistPrefix;
 
     @Value("${keycloak.client.secret}")
     private String CLIENT_SECRET;
@@ -77,6 +92,18 @@ public class AuthKeycloakServiceImpl implements IAuthKeycloakService{
         X509EncodedKeySpec keySpec = new X509EncodedKeySpec(publicKeyBytes);
         KeyFactory keyFactory = KeyFactory.getInstance("RSA");
         return keyFactory.generatePublic(keySpec);
+    }
+
+    @Override
+    public void logoutAndBlacklist(String authHeader) {
+        String token = (authHeader != null && authHeader.startsWith("Bearer ")) ? authHeader.substring(7) : null;
+        if (token == null) return;
+        keycloakProvider.revoke(token);
+        String jti = JwtUtils.getJti(token);
+        long ttl = JwtUtils.getTtlSeconds(token);
+        if (jti != null && ttl > 0) {
+        redis.opsForValue().set(blacklistPrefix + jti, "1", java.time.Duration.ofSeconds(ttl));
+        }
     }
 
     @SuppressWarnings("unchecked")

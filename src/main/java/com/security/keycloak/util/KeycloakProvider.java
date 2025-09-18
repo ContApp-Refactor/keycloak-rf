@@ -94,4 +94,30 @@ public class KeycloakProvider {
     public String getAdminAccessToken() {
         return keycloak.tokenManager().getAccessTokenString();
     }
+
+    /** Buscar usuario por email y lanzar si no existe */
+    public org.keycloak.representations.idm.UserRepresentation findUserByEmailOrThrow(String email) {
+        var users = getUserResource().searchByEmail(email, true);
+        if (users == null || users.isEmpty()) throw new RuntimeException("Usuario no encontrado");
+        return users.get(0);
+    }
+
+    /** Resetear password del usuario */
+    public void resetUserPassword(String userId, String newPassword) {
+        var cred = new org.keycloak.representations.idm.CredentialRepresentation();
+        cred.setType(org.keycloak.representations.idm.CredentialRepresentation.PASSWORD);
+        cred.setTemporary(false);
+        cred.setValue(newPassword);
+        getUserResource().get(userId).resetPassword(cred);
+    }
+
+    /** Revocar sesiones/tokens del usuario a partir del access token */
+    public void revoke(String accessToken) {
+        try {
+        String userId = com.security.keycloak.util.JwtUtils.getSub(accessToken);
+        if (userId != null) {
+            getRealmResource().users().get(userId).logout();
+        }
+        } catch (Exception ignore) { /* noop */ }
+    }
 }

@@ -7,9 +7,6 @@ spring:
         jwt:
           issuer-uri: ${KEYCLOAK_ISSUER_URI}
           jwk-set-uri: ${KEYCLOAK_JWK_SET_URI}
-
-          
-
   mail:
     host: ${MAIL_HOST:smtp.gmail.com}
     port: ${MAIL_PORT:587}
@@ -22,7 +19,16 @@ spring:
     redis:
       host: ${REDIS_HOST:localhost}
       port: ${REDIS_PORT:6379}
-
+app:
+  recovery:
+    base-url: ${RECOVERY_FRONTEND_URL:http://localhost:5173/reset-password}  # URL del frontend que recibe ?token=
+    ttl-seconds: ${RECOVERY_TTL_SECONDS:3600}                                # 1 hora
+  jwt:
+    blacklist-prefix: jwt:black
+    recovery-prefix: "pwd:reset:"
+  session:
+    idle-seconds: 1800  # 30 minutos (si usas el filtro de inactividad opcional)
+  
 logging:
   level:
     org:
@@ -33,16 +39,6 @@ jwt:
     converter:
       principle-attribute: ${PRINCIPLE_ATTRIBUTE}
       resource-id: ${RESOURCE_ID}
-  app:
-  recovery:
-    base-url: ${RECOVERY_FRONTEND_URL:http://localhost:5173/reset-password}
-    ttl-seconds: ${RECOVERY_TTL_SECONDS:3600}
-  jwt:
-    blacklist-prefix: jwt:black:
-    recovery-prefix: pwd:reset:
-  session:
-    idle-seconds: 1800
-    
   public:
     key: ${JWT_PUBLIC_KEY}
   token:

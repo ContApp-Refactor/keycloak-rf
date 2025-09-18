@@ -8,6 +8,8 @@ import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
+import com.security.keycloak.config.filters.JwtBlacklistFilter;
+import org.springframework.security.oauth2.server.resource.web.BearerTokenAuthenticationFilter;
 
 import lombok.RequiredArgsConstructor;
 
@@ -49,17 +51,26 @@ public class SecurityConfig {
      * @throws Exception en caso de error en la configuración.
      */
     @Bean
-    SecurityFilterChain securityFilterChain(HttpSecurity httpSecurity) throws Exception {
-        return httpSecurity
-                .csrf(csrf -> csrf.disable())
-                .authorizeHttpRequests(http -> http
-                    .requestMatchers("/api/keycloak/token/", "/swagger-ui/**", "/v3/api-docs/**", "/actuator/**").permitAll()
-                    .anyRequest()
-                    .authenticated())
-                .oauth2ResourceServer(oauth -> {
-                    oauth.jwt(jwt -> jwt.jwtAuthenticationConverter(jwtAuthConverter));
-                })
+    SecurityFilterChain securityFilterChain(HttpSecurity httpSecurity,
+                                            JwtBlacklistFilter blacklistFilter) throws Exception {
+         return httpSecurity
+                 .csrf(csrf -> csrf.disable())
+                 .authorizeHttpRequests(http -> http
+                        .requestMatchers(
+                                "/api/keycloak/token/",
+                                "/api/keycloak/forgot-password",
+                                "/api/keycloak/reset-password",
+                                "/swagger-ui/**",
+                                "/v3/api-docs/**",
+                                "/actuator/**"
+                        ).permitAll()
+                         .anyRequest()
+                         .authenticated())
+                 .oauth2ResourceServer(oauth -> {
+                     oauth.jwt(jwt -> jwt.jwtAuthenticationConverter(jwtAuthConverter));
+                 })
+                .addFilterBefore(blacklistFilter, BearerTokenAuthenticationFilter.class)
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .build();
-    }
+     }
 }
