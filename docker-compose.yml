@@ -54,7 +54,7 @@ services:
     restart: unless-stopped
     depends_on:
       - redis
-      # Descomenta si quieres levantar el Keycloak local
+      # Descomentar para keycloak local
       # - keycloak
     environment:
       SPRING_PROFILES_ACTIVE: dev
@@ -77,7 +77,7 @@ services:
       REDIS_HOST: redis
       REDIS_PORT: 6379
 
-      # Mail (ajusta con tu SMTP real)
+      # Mail
       MAIL_HOST: smtp.gmail.com
       MAIL_PORT: 587
       MAIL_USER: user@gmail.com

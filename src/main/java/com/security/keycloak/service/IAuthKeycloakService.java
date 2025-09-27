@@ -14,3 +14,4 @@ public interface IAuthKeycloakService {
     UserDTO getCurrentUser(String authorizationHeader) throws NoSuchAlgorithmException, InvalidKeySpecException;
     void logoutAndBlacklist(String authorizationHeader);
 }
+    

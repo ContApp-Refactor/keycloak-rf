@@ -9,13 +9,13 @@ public final class JwtUtils {
   public static String getJti(String token) {
     try {
       return Jwts.parser().parseClaimsJws(token).getBody().getId();
-    } catch (Exception e) { return null; }
+    } catch (io.jsonwebtoken.JwtException | IllegalArgumentException e) { return null; }
   }
 
   public static String getSub(String token) {
     try {
       return Jwts.parser().parseClaimsJws(token).getBody().getSubject();
-    } catch (Exception e) { return null; }
+    } catch (io.jsonwebtoken.JwtException | IllegalArgumentException e) { return null; }
   }
 
   public static long getTtlSeconds(String token) {
@@ -25,6 +25,6 @@ public final class JwtUtils {
       long exp = (c.getExpiration() != null) ? c.getExpiration().getTime() : now;
       long ttlMs = Math.max(0, exp - now);
       return ttlMs / 1000L;
-    } catch (Exception e) { return 0; }
+    } catch (io.jsonwebtoken.JwtException | IllegalArgumentException e) { return 0; }
   }
 }
