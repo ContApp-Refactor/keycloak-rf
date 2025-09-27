@@ -39,7 +39,7 @@ public class UserDTO {
     @NotBlank(message = "lastName es obligatorio")
     private String lastName;
 
-    // Contraseña solo para entrada (no se serializa en respuestas)
+    // Contraseña solo para entrada
     @JsonProperty(access = JsonProperty.Access.WRITE_ONLY)
     @Size(min = 8, max = 20, message = "La contraseña debe tener entre 8 y 20 caracteres")
     private String password;

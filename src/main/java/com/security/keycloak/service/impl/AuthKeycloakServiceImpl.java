@@ -20,9 +20,13 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.RestTemplate;
+import org.springframework.web.client.RestClientException;
 import org.springframework.data.redis.core.StringRedisTemplate;
 
 import lombok.RequiredArgsConstructor;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonMappingException;
@@ -39,6 +43,8 @@ import io.jsonwebtoken.Jwts;
 @Service
 @RequiredArgsConstructor
 public class AuthKeycloakServiceImpl implements IAuthKeycloakService{
+
+    private static final Logger logger = LoggerFactory.getLogger(AuthKeycloakServiceImpl.class);
 
     private final StringRedisTemplate redis;
     private final KeycloakProvider keycloakProvider;
@@ -120,26 +126,40 @@ public class AuthKeycloakServiceImpl implements IAuthKeycloakService{
 
         HttpEntity<MultiValueMap<String, String>> requestEntity = new HttpEntity<>(formData, headers);
 
-        ResponseEntity<String> response = new RestTemplate().postForEntity(tokenUrl, requestEntity, String.class);
+        try {
+            ResponseEntity<String> response = new RestTemplate().postForEntity(tokenUrl, requestEntity, String.class);
 
-        String responseBody = response.getBody();
+            String responseBody = response.getBody();
 
-        ObjectMapper mapper = new ObjectMapper();
-        Map<String, Object> responseMap = mapper.readValue(responseBody, Map.class);
-        String accessToken = (String) responseMap.get("access_token");
+            ObjectMapper mapper = new ObjectMapper();
+            Map<String, Object> responseMap = mapper.readValue(responseBody, Map.class);
+            String accessToken = (String) responseMap.get("access_token");
 
-        String rptToken = getTokenRPT(accessToken);
+            // Check if user is enabled
+            String userId = JwtUtils.getSub(accessToken);
+            if (userId != null) {
+                var userRep = keycloakProvider.getUserResource().get(userId).toRepresentation();
+                if (!userRep.isEnabled()) {
+                    throw new RuntimeException("Usuario inactivo");
+                }
+            }
 
-        Object expiresInObject = responseMap.get("expires_in");
-        Object refreshExpires = responseMap.get("refresh_expires_in");
+            String rptToken = getTokenRPT(accessToken);
 
-        Map<String, Object> accessTokenInfo = new HashMap<>();
-        accessTokenInfo.put("access_token", rptToken);
-        accessTokenInfo.put("expires_in", expiresInObject);
-        accessTokenInfo.put("refresh_expires_in", refreshExpires);
+            Object expiresInObject = responseMap.get("expires_in");
+            Object refreshExpires = responseMap.get("refresh_expires_in");
 
-        String accessTokenJson = mapper.writeValueAsString(accessTokenInfo);
-        return accessTokenJson;
+            Map<String, Object> accessTokenInfo = new HashMap<>();
+            accessTokenInfo.put("access_token", rptToken);
+            accessTokenInfo.put("expires_in", expiresInObject);
+            accessTokenInfo.put("refresh_expires_in", refreshExpires);
+
+            String accessTokenJson = mapper.writeValueAsString(accessTokenInfo);
+            return accessTokenJson;
+        } catch (RestClientException e) {
+            logger.warn("Intento de login fallido para usuario: {}", authDTO.getUsername());
+            throw new RuntimeException("Credenciales inválidas");
+        }
     }
     
     @SuppressWarnings("unchecked")
