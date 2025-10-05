@@ -76,7 +76,28 @@ public class UserKeycloakController {
     @PostMapping("/create")
     public ResponseEntity<?> createUser(@Valid @RequestBody UserDTO userDTO) throws URISyntaxException {
         try {
-            UserDTO response = userKeycloakService.createUser(userDTO);
+            UserDTO response = userKeycloakService.createUser(userDTO,null);
+            return ResponseEntity.ok(response);
+        } catch (UserException e) {
+            if (e.getStatus() == 409) {
+                return ResponseEntity.status(409).body(e.getMessage());
+            } else {
+                return ResponseEntity.status(500).body(e.getMessage());
+            }
+        }
+    }
+
+    @Operation(summary = "Registrar un nuevo usuario", description = "Registra un usuario en el sistema para acceso público.", responses = {
+            @ApiResponse(responseCode = "200", description = "Usuario registrado con éxito", content = @Content(mediaType = "application/json")),
+            @ApiResponse(responseCode = "409", description = "Usuario ya existente", content = @Content(mediaType = "application/json")),
+            @ApiResponse(responseCode = "400", description = "Solicitud inválida", content = @Content(mediaType = "application/json")),
+            @ApiResponse(responseCode = "500", description = "Error interno al registrar el usuario", content = @Content(mediaType = "application/json"))
+    })
+    @PreAuthorize("permitAll()")
+    @PostMapping("/register")
+    public ResponseEntity<?> registerUser(@Valid @RequestBody UserDTO userDTO) throws URISyntaxException {
+        try {
+            UserDTO response = userKeycloakService.createUser(userDTO,"Estudiante");
             return ResponseEntity.ok(response);
         } catch (UserException e) {
             if (e.getStatus() == 409) {

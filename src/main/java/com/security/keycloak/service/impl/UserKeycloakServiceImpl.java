@@ -1,6 +1,9 @@
 package com.security.keycloak.service.impl;
 
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
+
 import org.keycloak.OAuth2Constants;
 import org.keycloak.admin.client.resource.RealmResource;
 import org.keycloak.admin.client.resource.UserResource;
@@ -11,10 +14,13 @@ import org.keycloak.representations.idm.UserRepresentation;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
-import com.security.keycloak.controller.exception.UserException;
+import com.security.keycloak.controller.exception.ConflictException;
+import com.security.keycloak.controller.exception.ResourceNotFoundException;
 import com.security.keycloak.dtos.UserDTO;
 import com.security.keycloak.service.IUserKeycloakService;
 import com.security.keycloak.util.KeycloakProvider;
+
+import jakarta.ws.rs.ClientErrorException;
 import jakarta.ws.rs.core.Response;
 import lombok.NonNull;
 import lombok.extern.slf4j.Slf4j;
@@ -78,67 +84,104 @@ public class UserKeycloakServiceImpl implements IUserKeycloakService {
                 .toList();
     }
 
-     @Override
-    public UserDTO createUser(@NonNull UserDTO userDTO) {
-        int status = 0;
-        UsersResource usersResource = keycloakProvider.getUserResource();
+    @Override
+    public UserDTO createUser(UserDTO userDTO, String role) {
+        RealmResource realm = keycloakProvider.getRealmResource();
+        UsersResource usersResource = realm.users();
 
+        // Validar si ya existe un usuario con ese username o email
+        List<UserRepresentation> existingUsers = usersResource.search(userDTO.getUsername(), true);
+        if (!existingUsers.isEmpty()) {
+            log.error("El usuario '{}' ya existe en Keycloak", userDTO.getUsername());
+            throw new ConflictException("El usuario ya existe");
+        }
+
+        // Crear el objeto UserRepresentation
         UserRepresentation user = new UserRepresentation();
-
         user.setUsername(userDTO.getUsername());
+        user.setEmail(userDTO.getEmail());
         user.setFirstName(userDTO.getFirstName());
         user.setLastName(userDTO.getLastName());
-        user.setEmail(userDTO.getEmail());
         user.setEnabled(true);
-        user.setEmailVerified(true);
 
-        Response response = usersResource.create(user);
-        status = response.getStatus();
+        CredentialRepresentation credential = new CredentialRepresentation();
+        credential.setTemporary(false);
+        credential.setType(CredentialRepresentation.PASSWORD);
+        credential.setValue(userDTO.getPassword());
 
-        if(status == 201) {
-            String path = response.getLocation().getPath();
-            String userId = path.substring(path.lastIndexOf('/') + 1);
-            
-            CredentialRepresentation credentialRepresentation = new CredentialRepresentation();
-            credentialRepresentation.setTemporary(false);
-            credentialRepresentation.setType(OAuth2Constants.PASSWORD);
-            credentialRepresentation.setValue(userDTO.getPassword());
+        user.setCredentials(Collections.singletonList(credential));
 
-            usersResource.get(userId).resetPassword(credentialRepresentation);
+        try {
+            Response response = usersResource.create(user);
+            int status = response.getStatus();
 
-            RealmResource realmResource = keycloakProvider.getRealmResource();
+            if (status == 201) {
+                // Obtener el ID del nuevo usuario desde el header "Location"
+                String location = response.getHeaderString("Location");
+                String userId = location != null ? location.replaceAll(".*/(.*)$", "$1") : null;
 
-            List<RoleRepresentation> roles = null;
+                if (userId == null) {
+                    log.warn("Usuario '{}' creado, pero no se pudo extraer el ID", userDTO.getUsername());
+                    throw new RuntimeException("Error interno: no se pudo obtener el ID del usuario creado");
+                }
 
-            if(userDTO.getRoles() == null || userDTO.getRoles().isEmpty()) {
-                roles = List.of(realmResource.roles().get("user_realm").toRepresentation());       
-            }else{
-                roles = realmResource
-                    .roles()
-                    .list()
-                    .stream()
-                    .filter(role -> userDTO.getRoles()
-                        .stream()
-                        .anyMatch(roleName -> roleName.equalsIgnoreCase(role.getName())))
+                UserRepresentation createdUser = usersResource.get(userId).toRepresentation();
+
+                // Asignar rol 
+                List<String> rolesToAssign = new ArrayList<>();
+                if ("Estudiante".equalsIgnoreCase(role)) {
+                    rolesToAssign.add("Estudiante");
+                } else if (userDTO.getRoles() != null && !userDTO.getRoles().isEmpty()) {
+                    rolesToAssign.addAll(userDTO.getRoles());
+                } else {
+                    rolesToAssign.add("user_realm");
+                }
+
+                List<RoleRepresentation> rolesRep = realm.roles().list().stream()
+                    .filter(r -> rolesToAssign.contains(r.getName()))
                     .toList();
+
+                if (!rolesRep.isEmpty()) {
+                    realm.users().get(userId).roles().realmLevel().add(rolesRep);
+                    log.info("Roles asignados al usuario '{}': {}", createdUser.getUsername(), rolesToAssign);
+                } else {
+                    log.warn("Roles no encontrados, usuario creado sin roles");
+                }
+
+                // Obtener roles efectivos del usuario
+                List<RoleRepresentation> assignedRoles = realm.users().get(userId).roles().realmLevel().listEffective();
+
+                log.info("Usuario '{}' creado correctamente en Keycloak (id={})", createdUser.getUsername(), userId);
+
+                return UserDTO.builder()
+                        .id(userId)
+                        .username(createdUser.getUsername())
+                        .email(createdUser.getEmail())
+                        .firstName(createdUser.getFirstName())
+                        .lastName(createdUser.getLastName())
+                        .roles(assignedRoles.stream().map(RoleRepresentation::getName).toList())
+                        .build();
+
+            } else if (status == 409) {
+                throw new ConflictException("El usuario ya existe");
+            } else if (status == 404) {
+                throw new ResourceNotFoundException("Recurso de Keycloak no encontrado");
+            } else {
+                throw new RuntimeException("Error al crear usuario en Keycloak (HTTP " + status + ")");
             }
 
-            realmResource.users()
-                .get(userId)
-                .roles()
-                .realmLevel()
-                .add(roles);
-
-            return userDTO;
-
-        } else if(status == 409) {
-            log.error("User with username: {} already exists.", user.getUsername());
-            throw new UserException("User with username already exists", status);
-        } else {
-            log.error("Error creating user with username: {}. Status code: {}", user.getUsername(), status);
-            throw new UserException("Error creating user. Status code: " + status, status);
+        } catch (ClientErrorException cee) {
+            int status = cee.getResponse() != null ? cee.getResponse().getStatus() : 500;
+            log.error("Error de Keycloak al crear usuario '{}'. Status={} - {}", userDTO.getUsername(), status, cee.getMessage(), cee);
+            if (status == 409) throw new ConflictException("El usuario ya existe");
+            if (status == 404) throw new ResourceNotFoundException("Recurso de Keycloak no encontrado");
+            throw new RuntimeException("Error de Keycloak (" + status + "): " + cee.getMessage(), cee);
+        } catch (Exception e) {
+            log.error("Error inesperado al crear usuario '{}': {}", userDTO.getUsername(), e.getMessage(), e);
+            throw new RuntimeException("Error interno del servidor al crear usuario", e);
         }
     }
+
 
     @Override
     public void deleteUser(String userId) {

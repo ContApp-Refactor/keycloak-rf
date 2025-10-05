@@ -8,19 +8,19 @@ public final class JwtUtils {
 
   public static String getJti(String token) {
     try {
-      return Jwts.parser().parseClaimsJws(token).getBody().getId();
+      return Jwts.parser().build().parseClaimsJws(token).getBody().getId();
     } catch (io.jsonwebtoken.JwtException | IllegalArgumentException e) { return null; }
   }
 
   public static String getSub(String token) {
     try {
-      return Jwts.parser().parseClaimsJws(token).getBody().getSubject();
+      return Jwts.parser().build().parseClaimsJws(token).getBody().getSubject();
     } catch (io.jsonwebtoken.JwtException | IllegalArgumentException e) { return null; }
   }
 
   public static long getTtlSeconds(String token) {
     try {
-      Claims c = Jwts.parser().parseClaimsJws(token).getBody();
+      Claims c = Jwts.parser().build().parseClaimsJws(token).getBody();
       long now = System.currentTimeMillis();
       long exp = (c.getExpiration() != null) ? c.getExpiration().getTime() : now;
       long ttlMs = Math.max(0, exp - now);

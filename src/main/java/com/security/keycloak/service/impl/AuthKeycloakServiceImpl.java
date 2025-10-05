@@ -10,8 +10,10 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -19,14 +21,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
-import org.springframework.web.client.RestTemplate;
 import org.springframework.web.client.RestClientException;
-import org.springframework.data.redis.core.StringRedisTemplate;
-
-import lombok.RequiredArgsConstructor;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.springframework.web.client.RestTemplate;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonMappingException;
@@ -34,11 +30,12 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.security.keycloak.dtos.AuthDTO;
 import com.security.keycloak.dtos.UserDTO;
 import com.security.keycloak.service.IAuthKeycloakService;
-import com.security.keycloak.util.KeycloakProvider;
 import com.security.keycloak.util.JwtUtils;
+import com.security.keycloak.util.KeycloakProvider;
 
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
+import lombok.RequiredArgsConstructor;
 
 @Service
 @RequiredArgsConstructor
@@ -73,7 +70,7 @@ public class AuthKeycloakServiceImpl implements IAuthKeycloakService{
 
         if (jwt != null) {
             PublicKey publicKey = getPublicKey(publicKeyString);
-            Claims claims = Jwts.parser().setSigningKey(publicKey).parseClaimsJws(jwt).getBody();
+            Claims claims = Jwts.parser().setSigningKey(publicKey).build().parseClaimsJws(jwt).getBody();
 
             @SuppressWarnings("unchecked")
             UserDTO user = UserDTO.builder()
