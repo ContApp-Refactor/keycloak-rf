@@ -129,8 +129,8 @@ public class UserKeycloakServiceImpl implements IUserKeycloakService {
 
                 // Asignar rol 
                 List<String> rolesToAssign = new ArrayList<>();
-                if ("Estudiante".equalsIgnoreCase(role)) {
-                    rolesToAssign.add("Estudiante");
+                if (role != null && !role.isBlank()) {
+                    rolesToAssign.add(role);
                 } else if (userDTO.getRoles() != null && !userDTO.getRoles().isEmpty()) {
                     rolesToAssign.addAll(userDTO.getRoles());
                 } else {

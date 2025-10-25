@@ -27,6 +27,7 @@ import org.springframework.web.client.RestTemplate;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.security.keycloak.controller.exception.UserException;
 import com.security.keycloak.dtos.AuthDTO;
 import com.security.keycloak.dtos.UserDTO;
 import com.security.keycloak.service.IAuthKeycloakService;
@@ -68,7 +69,11 @@ public class AuthKeycloakServiceImpl implements IAuthKeycloakService{
             jwt = authorizationHeader.substring(7);
         }
 
-        if (jwt != null) {
+        if (jwt == null) {
+            throw new UserException("No autorizado", 401);
+        }
+
+        try {
             PublicKey publicKey = getPublicKey(publicKeyString);
             Claims claims = Jwts.parser().setSigningKey(publicKey).build().parseClaimsJws(jwt).getBody();
 
@@ -83,8 +88,9 @@ public class AuthKeycloakServiceImpl implements IAuthKeycloakService{
             .build();
 
             return user;
-        } else {
-            return null;
+        } catch (Exception e) {
+            logger.warn("Token inválido: {}", e.getMessage());
+            throw new UserException("Token inválido", 401);
         }
     }
     
@@ -111,19 +117,19 @@ public class AuthKeycloakServiceImpl implements IAuthKeycloakService{
     @Override
     public String getToken(AuthDTO authDTO) throws JsonMappingException, JsonProcessingException {
 
-        MultiValueMap<String, String> formData = new LinkedMultiValueMap<>();
-        formData.add("client_id", CLIENT_ID);
-        formData.add("grant_type", "password");
-        formData.add("username", authDTO.getUsername());
-        formData.add("password", authDTO.getPassword());
-        formData.add("client_secret", CLIENT_SECRET);
-
-        HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
-
-        HttpEntity<MultiValueMap<String, String>> requestEntity = new HttpEntity<>(formData, headers);
-
         try {
+            MultiValueMap<String, String> formData = new LinkedMultiValueMap<>();
+            formData.add("client_id", CLIENT_ID);
+            formData.add("grant_type", "password");
+            formData.add("username", authDTO.getUsername());
+            formData.add("password", authDTO.getPassword());
+            formData.add("client_secret", CLIENT_SECRET);
+
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
+
+            HttpEntity<MultiValueMap<String, String>> requestEntity = new HttpEntity<>(formData, headers);
+
             ResponseEntity<String> response = new RestTemplate().postForEntity(tokenUrl, requestEntity, String.class);
 
             String responseBody = response.getBody();
@@ -137,17 +143,17 @@ public class AuthKeycloakServiceImpl implements IAuthKeycloakService{
             if (userId != null) {
                 var userRep = keycloakProvider.getUserResource().get(userId).toRepresentation();
                 if (!userRep.isEnabled()) {
-                    throw new RuntimeException("Usuario inactivo");
+                    throw new UserException("Usuario inactivo", 401);
                 }
             }
 
-            String rptToken = getTokenRPT(accessToken);
+            // String rptToken = getTokenRPT(accessToken);
 
             Object expiresInObject = responseMap.get("expires_in");
             Object refreshExpires = responseMap.get("refresh_expires_in");
 
             Map<String, Object> accessTokenInfo = new HashMap<>();
-            accessTokenInfo.put("access_token", rptToken);
+            accessTokenInfo.put("access_token", accessToken);
             accessTokenInfo.put("expires_in", expiresInObject);
             accessTokenInfo.put("refresh_expires_in", refreshExpires);
 
@@ -155,7 +161,10 @@ public class AuthKeycloakServiceImpl implements IAuthKeycloakService{
             return accessTokenJson;
         } catch (RestClientException e) {
             logger.warn("Intento de login fallido para usuario: {}", authDTO.getUsername());
-            throw new RuntimeException("Credenciales inválidas");
+            throw new UserException("Credenciales inválidas", 401);
+        } catch (Exception e) {
+            logger.error("Error interno en getToken para usuario: {}", authDTO.getUsername(), e);
+            throw new UserException("Error interno en autenticación", 500);
         }
     }
     

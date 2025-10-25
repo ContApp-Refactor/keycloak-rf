@@ -28,7 +28,6 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import jakarta.validation.Valid;
 
 @RestController
-@PreAuthorize("hasRole('admin_client')")
 @RequestMapping("/api/keycloak")
 public class UserKeycloakController {
 
@@ -43,6 +42,7 @@ public class UserKeycloakController {
             @ApiResponse(responseCode = "500", description = "Error interno al recuperar los usuarios", content = @Content(mediaType = "application/json"))
     })
     @GetMapping("/users")
+    @PreAuthorize("hasRole('admin_client')")
     public ResponseEntity<?> findAllUsers() {
         return ResponseEntity.ok(userKeycloakService.findAllUsers());
     }
@@ -53,6 +53,7 @@ public class UserKeycloakController {
             @ApiResponse(responseCode = "500", description = "Error interno al buscar el usuario", content = @Content(mediaType = "application/json"))
     })
     @GetMapping("/user/{userId}")
+    @PreAuthorize("hasRole('admin_client')")
     public ResponseEntity<?> findUserById(@PathVariable String userId) {
         return ResponseEntity.ok(userKeycloakService.findUserById(userId));
     }
@@ -63,6 +64,7 @@ public class UserKeycloakController {
             @ApiResponse(responseCode = "500", description = "Error interno al buscar el usuario", content = @Content(mediaType = "application/json"))
     })
     @GetMapping("/users/{username}")
+    @PreAuthorize("hasRole('admin_client')")
     public ResponseEntity<?> findUserByUsername(@PathVariable String username) {
         return ResponseEntity.ok(userKeycloakService.findUserByUsername(username));
     }
@@ -74,6 +76,7 @@ public class UserKeycloakController {
             @ApiResponse(responseCode = "500", description = "Error interno al crear el usuario", content = @Content(mediaType = "application/json"))
     })
     @PostMapping("/create")
+    @PreAuthorize("hasRole('admin_client')")
     public ResponseEntity<?> createUser(@Valid @RequestBody UserDTO userDTO) throws URISyntaxException {
         try {
             UserDTO response = userKeycloakService.createUser(userDTO,null);
@@ -97,7 +100,7 @@ public class UserKeycloakController {
     @PostMapping("/register")
     public ResponseEntity<?> registerUser(@Valid @RequestBody UserDTO userDTO) throws URISyntaxException {
         try {
-            UserDTO response = userKeycloakService.createUser(userDTO,"Estudiante");
+            UserDTO response = userKeycloakService.createUser(userDTO,"user_client");
             return ResponseEntity.ok(response);
         } catch (UserException e) {
             if (e.getStatus() == 409) {
@@ -115,6 +118,7 @@ public class UserKeycloakController {
             @ApiResponse(responseCode = "500", description = "Error interno del servidor", content = @Content(mediaType = "application/json"))
     })
     @PutMapping("/update/{userId}")
+    @PreAuthorize("hasRole('admin_client')")
     public ResponseEntity<?> updateUser(@PathVariable String userId, @Valid @RequestBody UserDTO userDTO) {
         return ResponseEntity.ok(userKeycloakService.updateUser(userId, userDTO));
     }
@@ -125,6 +129,7 @@ public class UserKeycloakController {
             @ApiResponse(responseCode = "500", description = "Error interno del servidor", content = @Content(mediaType = "application/json"))
     })
     @DeleteMapping("/delete/{userId}")
+    @PreAuthorize("hasRole('admin_client')")
     public ResponseEntity<?> deleteUser(@PathVariable String userId) {
         userKeycloakService.deleteUser(userId);
         return ResponseEntity.ok("User deleted successfully");

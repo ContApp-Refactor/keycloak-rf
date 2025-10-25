@@ -63,6 +63,7 @@ services:
       - redis
     environment:
       SPRING_PROFILES_ACTIVE: dev
+      EUREKA_URL: http://host.docker.internal:8761/eureka/
 
       # Keycloak remoto/local
       KEYCLOAK_ISSUER_URI: ${KEYCLOAK_ISSUER_URI}
@@ -77,6 +78,8 @@ services:
       PRINCIPLE_ATTRIBUTE: ${PRINCIPLE_ATTRIBUTE}
       KEYCLOAK_CLIENT_ID: ${KEYCLOAK_CLIENT_ID}
       RESOURCE_ID: ${RESOURCE_ID}
+      JWT_TOKEN_URL: ${JWT_TOKEN_URL}
+      JWT_PUBLIC_KEY: ${JWT_PUBLIC_KEY}
 
       # Redis
       REDIS_HOST: redis
@@ -91,8 +94,10 @@ services:
       # Recovery
       RECOVERY_FRONTEND_URL: ${RECOVERY_FRONTEND_URL}
       RECOVERY_TTL_SECONDS: ${RECOVERY_TTL_SECONDS}
+      SERVER_PORT: 8081
+      EUREKA_INSTANCE_NON_SECURE_PORT: 8081
     ports:
-      - "8080:8080"
+      - "8081:8081"
     networks:
       - keycloak_network
 

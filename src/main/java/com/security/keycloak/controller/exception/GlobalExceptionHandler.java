@@ -213,6 +213,35 @@ public class GlobalExceptionHandler {
     }
 
     /**
+     * Manejo de excepciones de usuario.
+     * <p>
+     * Se activa para excepciones personalizadas de usuario.
+     * Devuelve el código de estado especificado en la excepción.
+     * </p>
+     *
+     * @param ex      excepción de usuario.
+     * @param request solicitud HTTP que produjo el error.
+     * @return respuesta con detalles del error de usuario.
+     */
+    @ExceptionHandler(UserException.class)
+    public ResponseEntity<ErrorResponse> handleUserException(
+            UserException ex,
+            HttpServletRequest request) {
+
+        HttpStatus status = HttpStatus.valueOf(ex.getStatus());
+
+        ErrorResponse error = ErrorResponse.builder()
+                .statusCode(ex.getStatus())
+                .error(status.getReasonPhrase())
+                .message(ex.getMessage())
+                .timestamp(LocalDateTime.now())
+                .path(request.getRequestURI())
+                .build();
+
+        return ResponseEntity.status(status).body(error);
+    }
+
+    /**
      * Manejo genérico de excepciones no controladas.
      * <p>
      * Se activa para cualquier error inesperado en la aplicación.
