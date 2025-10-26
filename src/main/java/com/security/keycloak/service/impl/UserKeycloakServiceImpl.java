@@ -35,7 +35,7 @@ public class UserKeycloakServiceImpl implements IUserKeycloakService {
     private KeycloakProvider keycloakProvider;
 
     private static final Pattern STRONG_PASSWORD_PATTERN =
-            Pattern.compile("^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[@$!%*?&])[A-Za-z\\d@$!%*?&]{8,20}$");
+            Pattern.compile("^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[@$!%*#?&])[A-Za-z\\d@$!%*#?&]{8,20}$");
 
     @Override
     public List<UserDTO> findUserByEmail(String email) {

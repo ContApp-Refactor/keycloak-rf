@@ -142,9 +142,9 @@ public class UserKeycloakController {
     })
     @DeleteMapping("/delete/{userId}")
     @PreAuthorize("hasRole('admin_client')")
-    public ResponseEntity<?> deleteUser(@PathVariable String userId) {
+    public ResponseEntity<Void> deleteUser(@PathVariable String userId) {
         userKeycloakService.deleteUser(userId);
-        return ResponseEntity.ok("User deleted successfully");
+        return ResponseEntity.noContent().build();
     }
 
     @Operation(summary = "Obtener información del usuario actual", description = "Recupera los detalles del usuario autenticado utilizando el token de autorización proporcionado en el encabezado.", responses = {
