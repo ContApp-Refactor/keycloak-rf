@@ -27,6 +27,7 @@ public class SecurityConfig {
     SecurityFilterChain securityFilterChain(HttpSecurity httpSecurity,
                                             JwtBlacklistFilter blacklistFilter) throws Exception {
          return httpSecurity
+                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                  .csrf(csrf -> csrf.disable())
                  .authorizeHttpRequests(http -> http
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll() 
@@ -45,7 +46,6 @@ public class SecurityConfig {
                      oauth.jwt(jwt -> jwt.jwtAuthenticationConverter(jwtAuthConverter));
                  })
                 .addFilterBefore(blacklistFilter, BearerTokenAuthenticationFilter.class)
-                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .build();
      }
 }

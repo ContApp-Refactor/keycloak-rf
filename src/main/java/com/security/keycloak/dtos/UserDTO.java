@@ -8,7 +8,6 @@ import com.security.keycloak.validation.ISanitize;
 
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -43,10 +42,7 @@ public class UserDTO {
     @ISanitize
     private String lastName;
 
-    // Contraseña solo para entrada
     @JsonProperty(access = JsonProperty.Access.WRITE_ONLY)
-    @Size(min = 8, max = 20, message = "La contraseña debe tener entre 8 y 20 caracteres")
-    @com.security.keycloak.validation.IStrongPassword
     private String password;
 
     private List<String> roles;

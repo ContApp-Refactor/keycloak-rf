@@ -58,6 +58,18 @@ public class UserKeycloakController {
         return ResponseEntity.ok(userKeycloakService.findUserById(userId));
     }
 
+    @Operation(summary = "Buscar usuarios por email", description = "Recupera usuarios que coincidan exactamente con el email proporcionado.", responses = {
+            @ApiResponse(responseCode = "200", description = "Usuarios encontrados", content = @Content(mediaType = "application/json")),
+            @ApiResponse(responseCode = "204", description = "No se encontraron usuarios con ese email"),
+            @ApiResponse(responseCode = "403", description = "No autorizado para acceder a este recurso"),
+            @ApiResponse(responseCode = "500", description = "Error interno al buscar usuarios", content = @Content(mediaType = "application/json"))
+    })
+    @GetMapping("/users/{email}")
+    @PreAuthorize("hasRole('admin_client')")
+    public ResponseEntity<?> findUserByEmail(@PathVariable String email) {
+        return ResponseEntity.ok(userKeycloakService.findUserByEmail(email));
+    }
+
     @Operation(summary = "Buscar un usuario por nombre de usuario", description = "Recupera los detalles de un usuario específico utilizando su nombre de usuario.", responses = {
             @ApiResponse(responseCode = "200", description = "Usuario encontrado con éxito", content = @Content(mediaType = "application/json")),
             @ApiResponse(responseCode = "404", description = "Usuario no encontrado", content = @Content(mediaType = "application/json")),
@@ -100,7 +112,7 @@ public class UserKeycloakController {
     @PostMapping("/register")
     public ResponseEntity<?> registerUser(@Valid @RequestBody UserDTO userDTO) throws URISyntaxException {
         try {
-            UserDTO response = userKeycloakService.createUser(userDTO,"user_client");
+            UserDTO response = userKeycloakService.createUser(userDTO,"Estudiante");
             return ResponseEntity.ok(response);
         } catch (UserException e) {
             if (e.getStatus() == 409) {
@@ -145,6 +157,16 @@ public class UserKeycloakController {
     public UserDTO obtenerUsername(@RequestHeader("Authorization") String authorizationHeader)
             throws NoSuchAlgorithmException, InvalidKeySpecException {
         return authKeycloakService.getCurrentUser(authorizationHeader);
+    }
+
+    @Operation(summary = "Obtener lista de roles disponibles", description = "Recupera una lista de todos los roles personalizados disponibles en el sistema.", responses = {
+            @ApiResponse(responseCode = "200", description = "Lista de roles recuperada con éxito", content = @Content(mediaType = "application/json")),
+            @ApiResponse(responseCode = "500", description = "Error interno al recuperar los roles", content = @Content(mediaType = "application/json"))
+    })
+    @GetMapping("/roles")
+    @PreAuthorize("hasRole('admin_client')")
+    public ResponseEntity<?> getRoles() {
+        return ResponseEntity.ok(userKeycloakService.getRoles());
     }
 
 }

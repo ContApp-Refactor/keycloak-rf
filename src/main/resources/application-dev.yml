@@ -64,6 +64,7 @@ server:
 eureka:
   instance:
     instance-id: "${spring.application.name}:${random.uuid}"
+    non-secure-port: ${server.port}
     hostname: ${INSTANCE_HOSTNAME:localhost}
 
   client:

@@ -3,6 +3,7 @@ package com.security.keycloak.service.impl;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.regex.Pattern;
 
 import org.keycloak.OAuth2Constants;
 import org.keycloak.admin.client.resource.RealmResource;
@@ -16,6 +17,7 @@ import org.springframework.stereotype.Service;
 
 import com.security.keycloak.controller.exception.ConflictException;
 import com.security.keycloak.controller.exception.ResourceNotFoundException;
+import com.security.keycloak.controller.exception.UserException;
 import com.security.keycloak.dtos.UserDTO;
 import com.security.keycloak.service.IUserKeycloakService;
 import com.security.keycloak.util.KeycloakProvider;
@@ -31,6 +33,39 @@ public class UserKeycloakServiceImpl implements IUserKeycloakService {
 
     @Autowired
     private KeycloakProvider keycloakProvider;
+
+    private static final Pattern STRONG_PASSWORD_PATTERN =
+            Pattern.compile("^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[@$!%*?&])[A-Za-z\\d@$!%*?&]{8,20}$");
+
+    @Override
+    public List<UserDTO> findUserByEmail(String email) {
+        log.info("Buscando usuario por email exacto: {}", email);
+        
+        // Usamos searchByEmail(email, true) para una búsqueda exacta
+        return keycloakProvider.getRealmResource()
+                .users()
+                .searchByEmail(email, true) 
+                .stream()
+                .map(user -> {
+                    List<RoleRepresentation> roles = keycloakProvider.getRealmResource()
+                            .users()
+                            .get(user.getId())
+                            .roles()
+                            .realmLevel()
+                            .listEffective();
+
+                    return UserDTO.builder()
+                            .id(user.getId())
+                            .username(user.getUsername())
+                            .email(user.getEmail())
+                            .firstName(user.getFirstName())
+                            .lastName(user.getLastName())
+                            .roles(roles.stream().map(RoleRepresentation::getName).toList())
+                            .build();
+                })
+                .toList();
+    }
+
 
     @Override
     public List<UserDTO> findAllUsers() {
@@ -88,6 +123,17 @@ public class UserKeycloakServiceImpl implements IUserKeycloakService {
     public UserDTO createUser(UserDTO userDTO, String role) {
         RealmResource realm = keycloakProvider.getRealmResource();
         UsersResource usersResource = realm.users();
+
+        String password = userDTO.getPassword();
+        if (password == null || password.isBlank()) {
+            throw new UserException("La contraseña es obligatoria al crear un usuario", 400); // O usa ConstraintViolationException si prefieres
+        }
+        if (password.length() < 8 || password.length() > 20) {
+             throw new UserException("La contraseña debe tener entre 8 y 20 caracteres", 400);
+        }
+        if (!STRONG_PASSWORD_PATTERN.matcher(password).matches()) {
+             throw new UserException("La contraseña debe contener al menos una mayúscula, una minúscula, un número y un carácter especial", 400);
+        }
 
         // Validar si ya existe un usuario con ese username o email
         List<UserRepresentation> existingUsers = usersResource.search(userDTO.getUsername(), true);
@@ -202,11 +248,18 @@ public class UserKeycloakServiceImpl implements IUserKeycloakService {
         user.setEmailVerified(true);
 
         if (userDTO.getPassword() != null) {
+
+            String password = userDTO.getPassword();
+              if (password.length() < 8 || password.length() > 20) {
+                 throw new UserException("La contraseña debe tener entre 8 y 20 caracteres", 400);
+             }
+             if (!STRONG_PASSWORD_PATTERN.matcher(password).matches()) {
+                 throw new UserException("La contraseña debe contener...", 400);
+             }
             CredentialRepresentation credentialRepresentation = new CredentialRepresentation();
             credentialRepresentation.setTemporary(false);
             credentialRepresentation.setType(OAuth2Constants.PASSWORD);
             credentialRepresentation.setValue(userDTO.getPassword());
-
             user.setCredentials(List.of(credentialRepresentation));
         }
 
@@ -258,5 +311,16 @@ public class UserKeycloakServiceImpl implements IUserKeycloakService {
             .roles(roles.stream().map(RoleRepresentation::getName).toList())
             .build();
     }
-    
+
+    @Override
+    public List<String> getRoles() {
+        return keycloakProvider.getRealmResource()
+            .roles()
+            .list()
+            .stream()
+            .map(RoleRepresentation::getName)
+            .filter(role -> !role.startsWith("default-roles") && !role.equals("offline_access") && !role.equals("uma_protection"))
+            .toList();
+    }
+
 }
