@@ -17,7 +17,6 @@ import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.security.keycloak.controller.exception.UserException;
 import com.security.keycloak.dtos.UserDTO;
 import com.security.keycloak.service.IAuthKeycloakService;
 import com.security.keycloak.service.IUserKeycloakService;
@@ -90,16 +89,8 @@ public class UserKeycloakController {
     @PostMapping("/create")
     @PreAuthorize("hasRole('admin_client')")
     public ResponseEntity<?> createUser(@Valid @RequestBody UserDTO userDTO) throws URISyntaxException {
-        try {
-            UserDTO response = userKeycloakService.createUser(userDTO,null);
-            return ResponseEntity.ok(response);
-        } catch (UserException e) {
-            if (e.getStatus() == 409) {
-                return ResponseEntity.status(409).body(e.getMessage());
-            } else {
-                return ResponseEntity.status(500).body(e.getMessage());
-            }
-        }
+        UserDTO response = userKeycloakService.createUser(userDTO, null);
+        return ResponseEntity.ok(response);
     }
 
     @Operation(summary = "Registrar un nuevo usuario", description = "Registra un usuario en el sistema para acceso público.", responses = {
@@ -111,16 +102,8 @@ public class UserKeycloakController {
     @PreAuthorize("permitAll()")
     @PostMapping("/register")
     public ResponseEntity<?> registerUser(@Valid @RequestBody UserDTO userDTO) throws URISyntaxException {
-        try {
-            UserDTO response = userKeycloakService.createUser(userDTO,"Estudiante");
-            return ResponseEntity.ok(response);
-        } catch (UserException e) {
-            if (e.getStatus() == 409) {
-                return ResponseEntity.status(409).body(e.getMessage());
-            } else {
-                return ResponseEntity.status(500).body(e.getMessage());
-            }
-        }
+        UserDTO response = userKeycloakService.createUser(userDTO, "Estudiante");
+        return ResponseEntity.ok(response);
     }
 
     @Operation(summary = "Actualizar un usuario", description = "Actualiza la información de un usuario existente identificado por su ID.", responses = {
