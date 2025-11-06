@@ -13,6 +13,7 @@ import org.springframework.stereotype.Service;
 import com.security.keycloak.controller.exception.ConflictException;
 import com.security.keycloak.controller.exception.ResourceNotFoundException;
 import com.security.keycloak.dtos.ProfileDTO;
+import com.security.keycloak.service.IPermissionKeycloakService;
 import com.security.keycloak.service.IProfileKeycloakService;
 import com.security.keycloak.util.KeycloakProvider;
 
@@ -34,6 +35,7 @@ import lombok.extern.slf4j.Slf4j;
 public class ProfileKeycloakServiceImpl implements IProfileKeycloakService {
 
     private final KeycloakProvider keycloakProvider;
+    private final IPermissionKeycloakService permissionKeycloakService;
 
     /**
      * Obtiene todos los perfiles (roles) disponibles en Keycloak,
@@ -157,6 +159,15 @@ public class ProfileKeycloakServiceImpl implements IProfileKeycloakService {
         List<UserRepresentation> users = roleResource.getUserMembers();
         if (users != null && !users.isEmpty()) {
             throw new ConflictException("El perfil está asignado a uno o más usuarios");
+        }
+
+        try {
+            permissionKeycloakService.detachPolicyReferencesForRole(roleName);
+        } catch (ConflictException | ResourceNotFoundException e) {
+            throw e; // mantén tu misma semántica de errores
+        } catch (RuntimeException e) {
+            log.error("Error al desvincular policies del rol '{}': {}", roleName, e.getMessage(), e);
+            throw e;
         }
 
         try {
