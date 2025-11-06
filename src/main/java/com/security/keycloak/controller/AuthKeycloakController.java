@@ -15,6 +15,7 @@ import com.fasterxml.jackson.databind.JsonMappingException;
 import com.security.keycloak.dtos.AuthDTO;
 import com.security.keycloak.service.IAuthKeycloakService;
 
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 
 @RestController
@@ -26,16 +27,17 @@ public class AuthKeycloakController {
 
     
     @PostMapping("/")
-    public ResponseEntity<?> getToken(@Valid @RequestBody AuthDTO authDTO) throws JsonMappingException, JsonProcessingException {
+    public ResponseEntity<?> getToken(@Valid @RequestBody AuthDTO authDTO, HttpServletRequest request) throws JsonMappingException, JsonProcessingException {
         return ResponseEntity.ok()
                 .contentType(MediaType.APPLICATION_JSON)
-                .body(authKeycloakService.getToken(authDTO));
+                .body(authKeycloakService.getToken(authDTO, request));
     }
 
     @PostMapping("/logout")
     public ResponseEntity<Void> logout(
-            @RequestHeader(name = HttpHeaders.AUTHORIZATION, required = false) String authHeader) {
-        authKeycloakService.logoutAndBlacklist(authHeader);
+            @RequestHeader(name = HttpHeaders.AUTHORIZATION, required = false) String authHeader,
+                HttpServletRequest request) {
+        authKeycloakService.logoutAndBlacklist(authHeader, request);
         return ResponseEntity.noContent().build();
     }
 }
