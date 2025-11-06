@@ -42,16 +42,6 @@ services:
     networks:
       - keycloak_network
 
-  redis:
-    image: redis:7-alpine
-    container_name: redis
-    restart: unless-stopped
-    command: ["redis-server", "--appendonly", "yes"]
-    ports:
-      - "6379:6379"
-    networks:
-      - keycloak_network
-
   service-keycloak:
     build:
       context: .
@@ -60,7 +50,7 @@ services:
     restart: unless-stopped
     depends_on:
       - keycloak
-      - redis
+
     environment:
       SPRING_PROFILES_ACTIVE: dev
       EUREKA_URL: http://host.docker.internal:8761/eureka/
@@ -80,10 +70,6 @@ services:
       RESOURCE_ID: ${RESOURCE_ID}
       JWT_TOKEN_URL: ${JWT_TOKEN_URL}
       JWT_PUBLIC_KEY: ${JWT_PUBLIC_KEY}
-
-      # Redis
-      REDIS_HOST: redis
-      REDIS_PORT: 6379
 
       # Mail
       MAIL_HOST: ${MAIL_HOST}

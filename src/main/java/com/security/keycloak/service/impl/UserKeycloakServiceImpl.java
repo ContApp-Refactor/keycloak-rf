@@ -124,22 +124,30 @@ public class UserKeycloakServiceImpl implements IUserKeycloakService {
         RealmResource realm = keycloakProvider.getRealmResource();
         UsersResource usersResource = realm.users();
 
+        // Validar contraseña
         String password = userDTO.getPassword();
         if (password == null || password.isBlank()) {
-            throw new UserException("La contraseña es obligatoria al crear un usuario", 400); // O usa ConstraintViolationException si prefieres
+            throw new UserException("La contraseña es obligatoria al crear un usuario", 400);
         }
         if (password.length() < 8 || password.length() > 20) {
              throw new UserException("La contraseña debe tener entre 8 y 20 caracteres", 400);
         }
         if (!STRONG_PASSWORD_PATTERN.matcher(password).matches()) {
-             throw new UserException("La contraseña debe contener al menos una mayúscula, una minúscula, un número y un carácter especial", 400);
+             throw new UserException("La contraseña debe contener al menos una mayúscula, una minúscula, un número y un carácter especial (@$!%*#?&)", 400);
         }
 
-        // Validar si ya existe un usuario con ese username o email
-        List<UserRepresentation> existingUsers = usersResource.search(userDTO.getUsername(), true);
-        if (!existingUsers.isEmpty()) {
+        // Validar si ya existe un usuario con ese username
+        List<UserRepresentation> existingUsersByUsername = usersResource.search(userDTO.getUsername(), true);
+        if (!existingUsersByUsername.isEmpty()) {
             log.error("El usuario '{}' ya existe en Keycloak", userDTO.getUsername());
-            throw new ConflictException("El usuario ya existe");
+            throw new ConflictException("Ya existe un usuario con este nombre de usuario");
+        }
+
+        // Validar si ya existe un usuario con ese email
+        List<UserRepresentation> existingUsersByEmail = usersResource.searchByEmail(userDTO.getEmail(), true);
+        if (!existingUsersByEmail.isEmpty()) {
+            log.error("El email '{}' ya está registrado en Keycloak", userDTO.getEmail());
+            throw new ConflictException("Ya existe un usuario con este correo electrónico");
         }
 
         // Crear el objeto UserRepresentation
@@ -209,7 +217,7 @@ public class UserKeycloakServiceImpl implements IUserKeycloakService {
                         .build();
 
             } else if (status == 409) {
-                throw new ConflictException("El usuario ya existe");
+                throw new ConflictException("Ya existe un usuario con este correo electrónico o nombre de usuario");
             } else if (status == 404) {
                 throw new ResourceNotFoundException("Recurso de Keycloak no encontrado");
             } else {
@@ -219,97 +227,147 @@ public class UserKeycloakServiceImpl implements IUserKeycloakService {
         } catch (ClientErrorException cee) {
             int status = cee.getResponse() != null ? cee.getResponse().getStatus() : 500;
             log.error("Error de Keycloak al crear usuario '{}'. Status={} - {}", userDTO.getUsername(), status, cee.getMessage(), cee);
-            if (status == 409) throw new ConflictException("El usuario ya existe");
+            if (status == 409) throw new ConflictException("Ya existe un usuario con este correo electrónico o nombre de usuario");
             if (status == 404) throw new ResourceNotFoundException("Recurso de Keycloak no encontrado");
-            throw new RuntimeException("Error de Keycloak (" + status + "): " + cee.getMessage(), cee);
+            throw new UserException("Error al comunicarse con el servidor de autenticación", 500);
+        } catch (ConflictException | UserException e) {
+            throw e; // Re-lanzar excepciones ya manejadas
         } catch (Exception e) {
             log.error("Error inesperado al crear usuario '{}': {}", userDTO.getUsername(), e.getMessage(), e);
-            throw new RuntimeException("Error interno del servidor al crear usuario", e);
+            throw new UserException("Error interno del servidor al crear usuario", 500);
         }
     }
 
 
     @Override
     public void deleteUser(String userId) {
-        keycloakProvider.getUserResource()
-            .get(userId)
-            .remove();
+        try {
+            // Verificar que el usuario existe antes de eliminar
+            UserRepresentation user = keycloakProvider.getUserResource().get(userId).toRepresentation();
+            if (user == null) {
+                throw new ResourceNotFoundException("Usuario", "id", userId);
+            }
+            
+            keycloakProvider.getUserResource().get(userId).remove();
+            log.info("Usuario con ID '{}' eliminado exitosamente", userId);
+        } catch (jakarta.ws.rs.NotFoundException e) {
+            log.error("Usuario con ID '{}' no encontrado", userId);
+            throw new ResourceNotFoundException("Usuario", "id", userId);
+        } catch (Exception e) {
+            log.error("Error al eliminar usuario con ID '{}': {}", userId, e.getMessage(), e);
+            throw new UserException("Error al eliminar el usuario", 500);
+        }
     }
 
     @Override
-    public UserDTO updateUser(String userId,@NonNull UserDTO userDTO) {
+    public UserDTO updateUser(String userId, @NonNull UserDTO userDTO) {
+        try {
+            // Verificar que el usuario existe
+            UserRepresentation existingUser = keycloakProvider.getUserResource().get(userId).toRepresentation();
+            if (existingUser == null) {
+                throw new ResourceNotFoundException("Usuario", "id", userId);
+            }
 
-        UserRepresentation user = new UserRepresentation();
-        user.setUsername(userDTO.getUsername());
-        user.setFirstName(userDTO.getFirstName());
-        user.setLastName(userDTO.getLastName());
-        user.setEmail(userDTO.getEmail());
-        user.setEnabled(true);
-        user.setEmailVerified(true);
+            UserRepresentation user = new UserRepresentation();
+            user.setUsername(userDTO.getUsername());
+            user.setFirstName(userDTO.getFirstName());
+            user.setLastName(userDTO.getLastName());
+            user.setEmail(userDTO.getEmail());
+            user.setEnabled(true);
+            user.setEmailVerified(true);
 
-        if (userDTO.getPassword() != null) {
+            // Validar y actualizar contraseña si se proporciona
+            if (userDTO.getPassword() != null && !userDTO.getPassword().isBlank()) {
+                String password = userDTO.getPassword();
+                if (password.length() < 8 || password.length() > 20) {
+                    throw new UserException("La contraseña debe tener entre 8 y 20 caracteres", 400);
+                }
+                if (!STRONG_PASSWORD_PATTERN.matcher(password).matches()) {
+                    throw new UserException("La contraseña debe contener al menos una mayúscula, una minúscula, un número y un carácter especial (@$!%*#?&)", 400);
+                }
+                CredentialRepresentation credentialRepresentation = new CredentialRepresentation();
+                credentialRepresentation.setTemporary(false);
+                credentialRepresentation.setType(OAuth2Constants.PASSWORD);
+                credentialRepresentation.setValue(userDTO.getPassword());
+                user.setCredentials(List.of(credentialRepresentation));
+            }
 
-            String password = userDTO.getPassword();
-              if (password.length() < 8 || password.length() > 20) {
-                 throw new UserException("La contraseña debe tener entre 8 y 20 caracteres", 400);
-             }
-             if (!STRONG_PASSWORD_PATTERN.matcher(password).matches()) {
-                 throw new UserException("La contraseña debe contener...", 400);
-             }
-            CredentialRepresentation credentialRepresentation = new CredentialRepresentation();
-            credentialRepresentation.setTemporary(false);
-            credentialRepresentation.setType(OAuth2Constants.PASSWORD);
-            credentialRepresentation.setValue(userDTO.getPassword());
-            user.setCredentials(List.of(credentialRepresentation));
+            RealmResource realmResource = keycloakProvider.getRealmResource();
+            
+            // Actualizar roles si se proporcionan
+            if (userDTO.getRoles() != null && !userDTO.getRoles().isEmpty()) {
+                List<RoleRepresentation> roles = realmResource
+                    .roles()
+                    .list()
+                    .stream()
+                    .filter(role -> userDTO.getRoles()
+                        .stream()
+                        .anyMatch(roleName -> roleName.equalsIgnoreCase(role.getName())))
+                    .toList();
+                
+                // Remover roles actuales
+                realmResource.users()
+                    .get(userId)
+                    .roles()
+                    .realmLevel()
+                    .remove(realmResource.roles().list());
+                
+                // Agregar nuevos roles
+                realmResource.users()
+                    .get(userId)
+                    .roles()
+                    .realmLevel()
+                    .add(roles);
+            }
+
+            UserResource userResource = keycloakProvider.getUserResource().get(userId);
+            userResource.update(user);
+            
+            log.info("Usuario con ID '{}' actualizado exitosamente", userId);
+
+            return userDTO;
+        } catch (jakarta.ws.rs.NotFoundException e) {
+            log.error("Usuario con ID '{}' no encontrado", userId);
+            throw new ResourceNotFoundException("Usuario", "id", userId);
+        } catch (UserException e) {
+            throw e; // Re-lanzar excepciones ya manejadas
+        } catch (Exception e) {
+            log.error("Error al actualizar usuario con ID '{}': {}", userId, e.getMessage(), e);
+            throw new UserException("Error al actualizar el usuario", 500);
         }
-
-        RealmResource realmResource = keycloakProvider.getRealmResource();
-        List<RoleRepresentation> roles = realmResource
-            .roles()
-            .list()
-            .stream()
-            .filter(role -> userDTO.getRoles()
-                .stream()
-                .anyMatch(roleName -> roleName.equalsIgnoreCase(role.getName())))
-            .toList();
-        
-        realmResource.users()
-            .get(userId)
-            .roles()
-            .realmLevel()
-            .remove(realmResource.roles().list());
-        
-        realmResource.users()
-            .get(userId)
-            .roles()
-            .realmLevel()
-            .add(roles);
-
-        UserResource userResource = keycloakProvider.getUserResource().get(userId);
-        userResource.update(user);
-
-        return userDTO;
     }
 
     @Override
     public UserDTO findUserById(String userId) {
-        UserRepresentation user = keycloakProvider.getUserResource().get(userId).toRepresentation();
+        try {
+            UserRepresentation user = keycloakProvider.getUserResource().get(userId).toRepresentation();
+            
+            if (user == null) {
+                throw new ResourceNotFoundException("Usuario", "id", userId);
+            }
 
-        List<RoleRepresentation> roles = keycloakProvider.getRealmResource()
-            .users()
-            .get(user.getId())
-            .roles()
-            .realmLevel()
-            .listEffective();
+            List<RoleRepresentation> roles = keycloakProvider.getRealmResource()
+                .users()
+                .get(user.getId())
+                .roles()
+                .realmLevel()
+                .listEffective();
 
-        return UserDTO.builder()
-            .id(user.getId())
-            .username(user.getUsername())
-            .email(user.getEmail())
-            .firstName(user.getFirstName())
-            .lastName(user.getLastName())
-            .roles(roles.stream().map(RoleRepresentation::getName).toList())
-            .build();
+            return UserDTO.builder()
+                .id(user.getId())
+                .username(user.getUsername())
+                .email(user.getEmail())
+                .firstName(user.getFirstName())
+                .lastName(user.getLastName())
+                .roles(roles.stream().map(RoleRepresentation::getName).toList())
+                .build();
+        } catch (jakarta.ws.rs.NotFoundException e) {
+            log.error("Usuario con ID '{}' no encontrado", userId);
+            throw new ResourceNotFoundException("Usuario", "id", userId);
+        } catch (Exception e) {
+            log.error("Error al buscar usuario con ID '{}': {}", userId, e.getMessage(), e);
+            throw new UserException("Error al buscar el usuario", 500);
+        }
     }
 
     @Override
