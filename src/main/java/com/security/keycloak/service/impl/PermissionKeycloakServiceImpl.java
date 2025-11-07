@@ -348,29 +348,46 @@ public class PermissionKeycloakServiceImpl implements IPermissionKeycloakService
      * @throws Exception para errores de serialización o HTTP no controlados.
      */
     private void updatePermissionWithPolicies(String permissionName, List<String> policies) throws Exception {
-        Map<String, Object> updatePayload = new HashMap<>();
-        updatePayload.put("name", permissionName);
-        updatePayload.put("policies", policies);
-
-        String jsonBody = objectMapper.writeValueAsString(updatePayload);
-        HttpHeaders headers = createJsonAuthHeaders();
-        HttpEntity<String> entity = new HttpEntity<>(jsonBody, headers);
-
         String permissionId = findPermissionIdByName(permissionName);
         if (permissionId == null) {
             log.warn("No se encontró el ID para el permiso '{}'. Se omite.", permissionName);
             throw new ResourceNotFoundException("Permiso no encontrado: " + permissionName);
         }
 
-        String updateUrl = String.format(PERMISSION_BY_ID_URL_TEMPLATE, permissionId);
+        String permUrl = String.format(PERMISSION_BY_ID_URL_TEMPLATE, permissionId);
+
+        HttpHeaders headersGet = createAuthHeaders();
+        HttpEntity<Void> getEntity = new HttpEntity<>(headersGet);
+        ResponseEntity<String> getResp = restTemplate.exchange(permUrl, HttpMethod.GET, getEntity, String.class);
+
+        if (getResp.getStatusCode() != HttpStatus.OK || getResp.getBody() == null) {
+            log.error("No se pudo leer la permission '{}' (id={}). Status={}", permissionName, permissionId, getResp.getStatusCode());
+            throw new RuntimeException("No se pudo leer la permission antes de actualizar");
+        }
+
+        JsonNode current = objectMapper.readTree(getResp.getBody());
+        @SuppressWarnings("unchecked")
+        Map<String, Object> fullPayload = objectMapper.convertValue(current, Map.class);
+
+        fullPayload.put("name", permissionName);
+
+        fullPayload.put("policies", policies);
+
+        fullPayload.put("decisionStrategy", "AFFIRMATIVE");
+
+        String jsonBody = objectMapper.writeValueAsString(fullPayload);
+        HttpHeaders headersPut = createJsonAuthHeaders();
+        HttpEntity<String> putEntity = new HttpEntity<>(jsonBody, headersPut);
+
         try {
-            restTemplate.exchange(updateUrl, HttpMethod.PUT, entity, Void.class);
+            restTemplate.exchange(permUrl, HttpMethod.PUT, putEntity, Void.class);
+            log.info("Permission '{}' actualizada. policies={}, decisionStrategy=AFFIRMATIVE", permissionName, policies.size());
         } catch (org.springframework.web.client.HttpClientErrorException e) {
             int code = e.getStatusCode().value();
             log.error("Error HTTP al actualizar permiso '{}': {} - {}", permissionName, code, e.getResponseBodyAsString());
             if (code == 404) throw new ResourceNotFoundException("Permiso no encontrado: " + permissionName);
             if (code == 409) throw new ConflictException("Conflicto al actualizar permiso: " + permissionName);
-            throw e; 
+            throw e;
         }
     }
 
@@ -557,8 +574,7 @@ public class PermissionKeycloakServiceImpl implements IPermissionKeycloakService
                     roleUrl,
                     HttpMethod.GET,
                     entity,
-                    String.class
-            );
+                    String.class);
 
             if (response.getStatusCode() == HttpStatus.OK && response.getBody() != null) {
                 JsonNode roleNode = objectMapper.readTree(response.getBody());
@@ -571,14 +587,48 @@ public class PermissionKeycloakServiceImpl implements IPermissionKeycloakService
             int sc = e.getStatusCode().value();
             if (sc == 404) {
                 log.warn("Rol '{}' no encontrado (404).", roleName);
-                return null; 
+                return null;
             }
             log.error("Error HTTP {} buscando ID del rol '{}': {}", sc, roleName, e.getResponseBodyAsString());
-            throw new RuntimeException("Error HTTP al buscar rol", e); 
+            throw new RuntimeException("Error HTTP al buscar rol", e);
         } catch (Exception e) {
             log.error("Error buscando ID del rol: {}", e.getMessage(), e);
             throw new RuntimeException("Error interno al buscar rol", e);
         }
+    }
+    
+    /**
+     * Desvincula todas las referencias de políticas asociadas a un rol específico.
+     *
+     * @param roleName nombre del rol cuyas referencias de políticas serán desvinculadas.
+     * @return {@code true} si la operación fue exitosa, {@code false} en caso contrario.
+     */
+    @Override
+    public boolean detachPolicyReferencesForRole(String roleName) {
+        final String policyName = roleName + " Policy";
+
+        List<String> allPermissions = findAllPermissions();
+
+        for (String permissionName : allPermissions) {
+            try {
+                List<String> currentPolicies = getPoliciesByPermissionName(permissionName);
+                if (currentPolicies.isEmpty()) continue;
+
+                boolean removed = currentPolicies.removeIf(p -> policyName.equals(p));
+                if (removed) {
+                    updatePermissionWithPolicies(permissionName, currentPolicies);
+                    log.info("Policy '{}' removida de permission '{}'", policyName, permissionName);
+                }
+            } catch (ResourceNotFoundException ex) {
+                log.warn("Permission '{}' no encontrada al quitar policy '{}'", permissionName, policyName);
+            } catch (ConflictException ex) {
+                throw ex;
+            } catch (Exception ex) {
+                log.error("Error al quitar policy '{}' de permission '{}': {}", policyName, permissionName, ex.getMessage(), ex);
+                throw new RuntimeException("Error interno al desasignar policy de permissions", ex);
+            }
+        }
+        return true;
     }
 
     /**
