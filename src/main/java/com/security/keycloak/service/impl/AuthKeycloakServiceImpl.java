@@ -10,7 +10,10 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -18,20 +21,34 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
+import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.security.keycloak.controller.exception.UserException;
 import com.security.keycloak.dtos.AuthDTO;
 import com.security.keycloak.dtos.UserDTO;
 import com.security.keycloak.service.IAuthKeycloakService;
+import com.security.keycloak.util.JwtUtils;
+import com.security.keycloak.util.KeycloakProvider;
 
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
+import lombok.RequiredArgsConstructor;
 
 @Service
+@RequiredArgsConstructor
 public class AuthKeycloakServiceImpl implements IAuthKeycloakService{
+
+    private static final Logger logger = LoggerFactory.getLogger(AuthKeycloakServiceImpl.class);
+
+    private final StringRedisTemplate redis;
+    private final KeycloakProvider keycloakProvider;
+    
+    @Value("${app.jwt.blacklist-prefix:jwt:black:}")
+    private String blacklistPrefix;
 
     @Value("${keycloak.client.secret}")
     private String CLIENT_SECRET;
@@ -52,9 +69,13 @@ public class AuthKeycloakServiceImpl implements IAuthKeycloakService{
             jwt = authorizationHeader.substring(7);
         }
 
-        if (jwt != null) {
+        if (jwt == null) {
+            throw new UserException("No autorizado", 401);
+        }
+
+        try {
             PublicKey publicKey = getPublicKey(publicKeyString);
-            Claims claims = Jwts.parser().setSigningKey(publicKey).parseClaimsJws(jwt).getBody();
+            Claims claims = Jwts.parser().setSigningKey(publicKey).build().parseClaimsJws(jwt).getBody();
 
             @SuppressWarnings("unchecked")
             UserDTO user = UserDTO.builder()
@@ -67,8 +88,9 @@ public class AuthKeycloakServiceImpl implements IAuthKeycloakService{
             .build();
 
             return user;
-        } else {
-            return null;
+        } catch (Exception e) {
+            logger.warn("Token inválido: {}", e.getMessage());
+            throw new UserException("Token inválido", 401);
         }
     }
     
@@ -79,42 +101,71 @@ public class AuthKeycloakServiceImpl implements IAuthKeycloakService{
         return keyFactory.generatePublic(keySpec);
     }
 
+    @Override
+    public void logoutAndBlacklist(String authHeader) {
+        String token = (authHeader != null && authHeader.startsWith("Bearer ")) ? authHeader.substring(7) : null;
+        if (token == null) return;
+        keycloakProvider.revoke(token);
+        String jti = JwtUtils.getJti(token);
+        long ttl = JwtUtils.getTtlSeconds(token);
+        if (jti != null && ttl > 0) {
+        redis.opsForValue().set(blacklistPrefix + jti, "1", java.time.Duration.ofSeconds(ttl));
+        }
+    }
+
     @SuppressWarnings("unchecked")
     @Override
     public String getToken(AuthDTO authDTO) throws JsonMappingException, JsonProcessingException {
 
-        MultiValueMap<String, String> formData = new LinkedMultiValueMap<>();
-        formData.add("client_id", CLIENT_ID);
-        formData.add("grant_type", "password");
-        formData.add("username", authDTO.getUsername());
-        formData.add("password", authDTO.getPassword());
-        formData.add("client_secret", CLIENT_SECRET);
+        try {
+            MultiValueMap<String, String> formData = new LinkedMultiValueMap<>();
+            formData.add("client_id", CLIENT_ID);
+            formData.add("grant_type", "password");
+            formData.add("username", authDTO.getUsername());
+            formData.add("password", authDTO.getPassword());
+            formData.add("client_secret", CLIENT_SECRET);
 
-        HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
 
-        HttpEntity<MultiValueMap<String, String>> requestEntity = new HttpEntity<>(formData, headers);
+            HttpEntity<MultiValueMap<String, String>> requestEntity = new HttpEntity<>(formData, headers);
 
-        ResponseEntity<String> response = new RestTemplate().postForEntity(tokenUrl, requestEntity, String.class);
+            ResponseEntity<String> response = new RestTemplate().postForEntity(tokenUrl, requestEntity, String.class);
 
-        String responseBody = response.getBody();
+            String responseBody = response.getBody();
 
-        ObjectMapper mapper = new ObjectMapper();
-        Map<String, Object> responseMap = mapper.readValue(responseBody, Map.class);
-        String accessToken = (String) responseMap.get("access_token");
+            ObjectMapper mapper = new ObjectMapper();
+            Map<String, Object> responseMap = mapper.readValue(responseBody, Map.class);
+            String accessToken = (String) responseMap.get("access_token");
 
-        String rptToken = getTokenRPT(accessToken);
+            // Check if user is enabled
+            String userId = JwtUtils.getSub(accessToken);
+            if (userId != null) {
+                var userRep = keycloakProvider.getUserResource().get(userId).toRepresentation();
+                if (!userRep.isEnabled()) {
+                    throw new UserException("Usuario inactivo", 401);
+                }
+            }
 
-        Object expiresInObject = responseMap.get("expires_in");
-        Object refreshExpires = responseMap.get("refresh_expires_in");
+            // String rptToken = getTokenRPT(accessToken);
 
-        Map<String, Object> accessTokenInfo = new HashMap<>();
-        accessTokenInfo.put("access_token", rptToken);
-        accessTokenInfo.put("expires_in", expiresInObject);
-        accessTokenInfo.put("refresh_expires_in", refreshExpires);
+            Object expiresInObject = responseMap.get("expires_in");
+            Object refreshExpires = responseMap.get("refresh_expires_in");
 
-        String accessTokenJson = mapper.writeValueAsString(accessTokenInfo);
-        return accessTokenJson;
+            Map<String, Object> accessTokenInfo = new HashMap<>();
+            accessTokenInfo.put("access_token", accessToken);
+            accessTokenInfo.put("expires_in", expiresInObject);
+            accessTokenInfo.put("refresh_expires_in", refreshExpires);
+
+            String accessTokenJson = mapper.writeValueAsString(accessTokenInfo);
+            return accessTokenJson;
+        } catch (RestClientException e) {
+            logger.warn("Intento de login fallido para usuario: {}", authDTO.getUsername());
+            throw new UserException("Credenciales inválidas", 401);
+        } catch (Exception e) {
+            logger.error("Error interno en getToken para usuario: {}", authDTO.getUsername(), e);
+            throw new UserException("Error interno en autenticación", 500);
+        }
     }
     
     @SuppressWarnings("unchecked")

@@ -4,9 +4,6 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
 
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.validation.ConstraintViolationException;
-
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
@@ -14,7 +11,10 @@ import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.client.RestClientException;
 
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.validation.ConstraintViolationException;
 import lombok.extern.slf4j.Slf4j;
 
 /**
@@ -25,7 +25,7 @@ import lombok.extern.slf4j.Slf4j;
  * </p>
  * <p>
  * Proporciona manejadores para errores comunes como validación, acceso denegado,
- * recurso no encontrado, conflictos y errores internos del servidor.
+ * recurso no encontrado, conflictos, autenticación y errores internos del servidor.
  * </p>
  */
 @Slf4j
@@ -106,6 +106,33 @@ public class GlobalExceptionHandler {
     }
 
     /**
+     * Manejo de errores de validación custom como @Sanitize.
+     * <p>
+     * Se activa cuando un campo con @Sanitize falla la validación.
+     * Devuelve un código de estado 400 (Bad Request).
+     * </p>
+     *
+     * @param ex      excepción de validación custom.
+     * @param request solicitud HTTP que produjo el error.
+     * @return respuesta con detalles del error de sanitización.
+     */
+    @ExceptionHandler(jakarta.validation.ValidationException.class)
+    public ResponseEntity<ErrorResponse> handleCustomValidation(
+            jakarta.validation.ValidationException ex,
+            HttpServletRequest request) {
+
+        ErrorResponse error = ErrorResponse.builder()
+                .statusCode(HttpStatus.BAD_REQUEST.value())
+                .error("Bad Request")
+                .message(ex.getMessage())
+                .timestamp(LocalDateTime.now())
+                .path(request.getRequestURI())
+                .build();
+
+        return ResponseEntity.badRequest().body(error);
+    }
+
+    /**
      * Manejo de acceso denegado.
      * <p>
      * Se activa cuando un usuario intenta acceder a un recurso sin permisos suficientes.
@@ -174,6 +201,123 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ErrorResponse> handleConflict(
             ConflictException ex,
             HttpServletRequest request) {
+
+        ErrorResponse error = ErrorResponse.builder()
+                .statusCode(HttpStatus.CONFLICT.value())
+                .error("Conflict")
+                .message(ex.getMessage())
+                .timestamp(LocalDateTime.now())
+                .path(request.getRequestURI())
+                .build();
+
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(error);
+    }
+
+    /**
+     * Manejo de excepciones de usuario.
+     * <p>
+     * Se activa para excepciones personalizadas de usuario.
+     * Devuelve el código de estado especificado en la excepción.
+     * </p>
+     *
+     * @param ex      excepción de usuario.
+     * @param request solicitud HTTP que produjo el error.
+     * @return respuesta con detalles del error de usuario.
+     */
+    @ExceptionHandler(UserException.class)
+    public ResponseEntity<ErrorResponse> handleUserException(
+            UserException ex,
+            HttpServletRequest request) {
+
+        HttpStatus status = HttpStatus.valueOf(ex.getStatus());
+        
+        log.warn("UserException: {} - Status: {}", ex.getMessage(), ex.getStatus());
+
+        ErrorResponse error = ErrorResponse.builder()
+                .statusCode(ex.getStatus())
+                .error(status.getReasonPhrase())
+                .message(ex.getMessage())
+                .timestamp(LocalDateTime.now())
+                .path(request.getRequestURI())
+                .build();
+
+        return ResponseEntity.status(status).body(error);
+    }
+
+    /**
+     * Manejo de errores de cliente REST (RestClientException).
+     * <p>
+     * Se activa cuando hay errores en llamadas REST, como problemas de autenticación con Keycloak.
+     * </p>
+     *
+     * @param ex      excepción de cliente REST.
+     * @param request solicitud HTTP que produjo el error.
+     * @return respuesta con detalles del error.
+     */
+    @ExceptionHandler(RestClientException.class)
+    public ResponseEntity<ErrorResponse> handleRestClientError(
+            RestClientException ex,
+            HttpServletRequest request) {
+
+        log.error("Error en llamada REST: {}", ex.getMessage());
+
+        ErrorResponse error = ErrorResponse.builder()
+                .statusCode(HttpStatus.UNAUTHORIZED.value())
+                .error("Unauthorized")
+                .message("Error de autenticación. Por favor verifica tus credenciales.")
+                .timestamp(LocalDateTime.now())
+                .path(request.getRequestURI())
+                .build();
+
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(error);
+    }
+
+    /**
+     * Manejo de IllegalArgumentException.
+     * <p>
+     * Se activa cuando se proporcionan argumentos inválidos.
+     * Devuelve un código de estado 400 (Bad Request).
+     * </p>
+     *
+     * @param ex      excepción de argumento ilegal.
+     * @param request solicitud HTTP que produjo el error.
+     * @return respuesta con detalles del error.
+     */
+    @ExceptionHandler(IllegalArgumentException.class)
+    public ResponseEntity<ErrorResponse> handleIllegalArgument(
+            IllegalArgumentException ex,
+            HttpServletRequest request) {
+
+        log.warn("Argumento inválido: {}", ex.getMessage());
+
+        ErrorResponse error = ErrorResponse.builder()
+                .statusCode(HttpStatus.BAD_REQUEST.value())
+                .error("Bad Request")
+                .message(ex.getMessage())
+                .timestamp(LocalDateTime.now())
+                .path(request.getRequestURI())
+                .build();
+
+        return ResponseEntity.badRequest().body(error);
+    }
+
+    /**
+     * Manejo de IllegalStateException.
+     * <p>
+     * Se activa cuando el estado de la aplicación no permite la operación.
+     * Devuelve un código de estado 409 (Conflict).
+     * </p>
+     *
+     * @param ex      excepción de estado ilegal.
+     * @param request solicitud HTTP que produjo el error.
+     * @return respuesta con detalles del error.
+     */
+    @ExceptionHandler(IllegalStateException.class)
+    public ResponseEntity<ErrorResponse> handleIllegalState(
+            IllegalStateException ex,
+            HttpServletRequest request) {
+
+        log.warn("Estado ilegal: {}", ex.getMessage());
 
         ErrorResponse error = ErrorResponse.builder()
                 .statusCode(HttpStatus.CONFLICT.value())

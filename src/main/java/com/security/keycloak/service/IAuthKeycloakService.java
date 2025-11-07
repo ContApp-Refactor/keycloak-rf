@@ -10,7 +10,8 @@ import com.security.keycloak.dtos.UserDTO;
 
 public interface IAuthKeycloakService {
 
-    String getToken(AuthDTO authDTO) throws JsonMappingException, JsonProcessingException;
-    UserDTO getCurrentUser(String authorizationHeader)throws NoSuchAlgorithmException, InvalidKeySpecException ;  
-
+    String getToken(AuthDTO authDTO) throws JsonMappingException, JsonProcessingException, RuntimeException;
+    UserDTO getCurrentUser(String authorizationHeader) throws NoSuchAlgorithmException, InvalidKeySpecException;
+    void logoutAndBlacklist(String authorizationHeader);
 }
+    
