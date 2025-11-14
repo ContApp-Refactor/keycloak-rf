@@ -24,7 +24,6 @@ public class SessionEventPublisherImpl implements ISessionEventPublisher {
                     AUDIT_EXCHANGE,
                     SESSION_EVENT_ROUTING_KEY,
                     sessionEventDTO);
-            log.info("Login event published successfully for user: {}", sessionEventDTO.getUserName());
         } catch (Exception e) {
             log.error("Failed to publish login event: {}", e.getMessage());
         }
@@ -37,7 +36,6 @@ public class SessionEventPublisherImpl implements ISessionEventPublisher {
                     AUDIT_EXCHANGE,
                     SESSION_EVENT_ROUTING_KEY,
                     sessionEventDTO);
-            log.info("Logout event published successfully for user: {}", sessionEventDTO.getUserName());
         } catch (Exception e) {
             log.error("Error publishing logout event for user: {}", sessionEventDTO.getUserName(), e);
         }

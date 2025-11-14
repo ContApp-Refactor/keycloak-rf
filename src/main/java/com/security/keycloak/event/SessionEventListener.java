@@ -27,7 +27,6 @@ public class SessionEventListener {
                     event.jwtToken(),
                     event.request());
             sessionEventPublisher.publishLoginEvent(sessionEvent);
-            log.info("Session event published for user login: {}", sessionEvent.getUserName());
         } catch (Exception e) {
             log.error("Failed to process UserLoggedInEvent", e);
         }
@@ -42,7 +41,6 @@ public class SessionEventListener {
                     event.request());
 
             sessionEventPublisher.publishLogoutEvent(sessionEvent);
-            log.info("Logout event published for user: {}", sessionEvent.getUserName());
         } catch (Exception e) {
             log.error("Error handling UserLoggedOutEvent", e);
         }
