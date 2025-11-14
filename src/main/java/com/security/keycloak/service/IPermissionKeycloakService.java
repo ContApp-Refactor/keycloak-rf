@@ -44,4 +44,12 @@ public interface IPermissionKeycloakService {
      */
     boolean updatePermissionsForRole(List<String> newPermissions, String roleName);
 
+    /**
+     * Desvincula todas las referencias de políticas asociadas a un rol específico.
+     *
+     * @param roleName nombre del rol cuyas referencias de políticas serán desvinculadas.
+     * @return {@code true} si la operación fue exitosa, {@code false} en caso contrario.
+     */
+    boolean detachPolicyReferencesForRole(String roleName);
+
 }
