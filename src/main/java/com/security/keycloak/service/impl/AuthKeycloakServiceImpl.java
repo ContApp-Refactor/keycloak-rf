@@ -13,6 +13,7 @@ import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
@@ -30,12 +31,15 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.security.keycloak.controller.exception.UserException;
 import com.security.keycloak.dtos.AuthDTO;
 import com.security.keycloak.dtos.UserDTO;
+import com.security.keycloak.event.UserLoggedInEvent;
+import com.security.keycloak.event.UserLoggedOutEvent;
 import com.security.keycloak.service.IAuthKeycloakService;
 import com.security.keycloak.util.JwtUtils;
 import com.security.keycloak.util.KeycloakProvider;
 
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 
 @Service
@@ -46,6 +50,8 @@ public class AuthKeycloakServiceImpl implements IAuthKeycloakService{
 
     private final StringRedisTemplate redis;
     private final KeycloakProvider keycloakProvider;
+
+    private final ApplicationEventPublisher eventPublisher;
     
     @Value("${app.jwt.blacklist-prefix:jwt:black:}")
     private String blacklistPrefix;
@@ -102,20 +108,22 @@ public class AuthKeycloakServiceImpl implements IAuthKeycloakService{
     }
 
     @Override
-    public void logoutAndBlacklist(String authHeader) {
+    public void logoutAndBlacklist(String authHeader, HttpServletRequest request) {
         String token = (authHeader != null && authHeader.startsWith("Bearer ")) ? authHeader.substring(7) : null;
         if (token == null) return;
         keycloakProvider.revoke(token);
         String jti = JwtUtils.getJti(token);
         long ttl = JwtUtils.getTtlSeconds(token);
         if (jti != null && ttl > 0) {
-        redis.opsForValue().set(blacklistPrefix + jti, "1", java.time.Duration.ofSeconds(ttl));
+            redis.opsForValue().set(blacklistPrefix + jti, "1", java.time.Duration.ofSeconds(ttl));
         }
+        //Publico evento de logout para micro de auditoria
+        eventPublisher.publishEvent(new UserLoggedOutEvent(token, request));
     }
 
     @SuppressWarnings("unchecked")
     @Override
-    public String getToken(AuthDTO authDTO) throws JsonMappingException, JsonProcessingException {
+    public String getToken(AuthDTO authDTO, HttpServletRequest request) throws JsonMappingException, JsonProcessingException {
 
         try {
             MultiValueMap<String, String> formData = new LinkedMultiValueMap<>();
@@ -158,6 +166,10 @@ public class AuthKeycloakServiceImpl implements IAuthKeycloakService{
             accessTokenInfo.put("refresh_expires_in", refreshExpires);
 
             String accessTokenJson = mapper.writeValueAsString(accessTokenInfo);
+
+            //Publico evento de token para micro de auditoria
+            eventPublisher.publishEvent(new UserLoggedInEvent(accessToken, request));
+
             return accessTokenJson;
         } catch (RestClientException e) {
             logger.warn("Intento de login fallido para usuario: {}", authDTO.getUsername());
