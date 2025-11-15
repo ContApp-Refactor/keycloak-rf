@@ -23,6 +23,8 @@ public class SecurityConfig {
     @Autowired
     private JwtAuthConverter jwtAuthConverter;
 
+    private final JwtAuthenticationEntryPoint jwtAuthenticationEntryPoint;
+
     @Bean
     SecurityFilterChain securityFilterChain(HttpSecurity httpSecurity,
                                             JwtBlacklistFilter blacklistFilter) throws Exception {
@@ -42,9 +44,10 @@ public class SecurityConfig {
                         ).permitAll()
                          .anyRequest()
                          .authenticated())
-                 .oauth2ResourceServer(oauth -> {
-                     oauth.jwt(jwt -> jwt.jwtAuthenticationConverter(jwtAuthConverter));
-                 })
+                 .oauth2ResourceServer(oauth -> oauth
+                     .authenticationEntryPoint(jwtAuthenticationEntryPoint)
+                     .jwt(jwt -> jwt.jwtAuthenticationConverter(jwtAuthConverter))
+                 )
                 .addFilterBefore(blacklistFilter, BearerTokenAuthenticationFilter.class)
                 .build();
      }
