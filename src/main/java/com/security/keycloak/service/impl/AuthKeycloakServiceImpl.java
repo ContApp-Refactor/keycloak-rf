@@ -155,20 +155,20 @@ public class AuthKeycloakServiceImpl implements IAuthKeycloakService{
                 }
             }
 
-            // String rptToken = getTokenRPT(accessToken);
+            String rptToken = getTokenRPT(accessToken);
 
             Object expiresInObject = responseMap.get("expires_in");
             Object refreshExpires = responseMap.get("refresh_expires_in");
 
             Map<String, Object> accessTokenInfo = new HashMap<>();
-            accessTokenInfo.put("access_token", accessToken);
+            accessTokenInfo.put("access_token", rptToken);
             accessTokenInfo.put("expires_in", expiresInObject);
             accessTokenInfo.put("refresh_expires_in", refreshExpires);
 
             String accessTokenJson = mapper.writeValueAsString(accessTokenInfo);
 
             //Publico evento de token para micro de auditoria
-            eventPublisher.publishEvent(new UserLoggedInEvent(accessToken, request));
+            eventPublisher.publishEvent(new UserLoggedInEvent(rptToken, request));
 
             return accessTokenJson;
         } catch (RestClientException e) {
