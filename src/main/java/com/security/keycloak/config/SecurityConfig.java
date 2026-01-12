@@ -25,30 +25,34 @@ public class SecurityConfig {
 
     private final JwtAuthenticationEntryPoint jwtAuthenticationEntryPoint;
 
-    @Bean
-    SecurityFilterChain securityFilterChain(HttpSecurity httpSecurity,
-                                            JwtBlacklistFilter blacklistFilter) throws Exception {
-         return httpSecurity
-                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-                 .csrf(csrf -> csrf.disable())
-                 .authorizeHttpRequests(http -> http
-                        .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll() 
-                        .requestMatchers(
-                                "/api/keycloak/token/**", 
-                                "/api/keycloak/register",
-                                "/api/keycloak/forgot-password",
-                                "/api/keycloak/reset-password",
-                                "/swagger-ui/**",
-                                "/v3/api-docs/**",
-                                "/actuator/**"
-                        ).permitAll()
-                         .anyRequest()
-                         .authenticated())
-                 .oauth2ResourceServer(oauth -> oauth
-                     .authenticationEntryPoint(jwtAuthenticationEntryPoint)
-                     .jwt(jwt -> jwt.jwtAuthenticationConverter(jwtAuthConverter))
-                 )
-                .addFilterBefore(blacklistFilter, BearerTokenAuthenticationFilter.class)
+        @Bean   
+        SecurityFilterChain securityFilterChain(
+                HttpSecurity httpSecurity,
+                JwtBlacklistFilter blacklistFilter) throws Exception {
+
+        return httpSecurity
+                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .csrf(csrf -> csrf.disable())
+                .authorizeHttpRequests(http -> http
+                .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+                .requestMatchers(
+                        "/api/keycloak/token/**",
+                        "/api/keycloak/register",
+                        "/api/keycloak/forgot-password",
+                        "/api/keycloak/reset-password",
+                        "/swagger-ui/**",
+                        "/v3/api-docs/**",
+                        "/actuator/**"
+                ).permitAll()
+                .anyRequest().authenticated()
+                )
+                .oauth2ResourceServer(oauth -> oauth
+                .authenticationEntryPoint(jwtAuthenticationEntryPoint)
+                .jwt(jwt -> jwt.jwtAuthenticationConverter(jwtAuthConverter))
+                )
+                .addFilterAfter(blacklistFilter, BearerTokenAuthenticationFilter.class)
                 .build();
-     }
+                
+        }
+
 }

@@ -14,6 +14,6 @@ public interface IAuthKeycloakService {
 
     String getToken(AuthDTO authDTO, HttpServletRequest request) throws JsonMappingException, JsonProcessingException, RuntimeException;
     UserDTO getCurrentUser(String authorizationHeader) throws NoSuchAlgorithmException, InvalidKeySpecException;
-    void logoutAndBlacklist(String authorizationHeader, HttpServletRequest request);
+    void logoutAndBlacklist(HttpServletRequest request);
 }
     

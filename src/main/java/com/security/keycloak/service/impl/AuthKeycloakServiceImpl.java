@@ -5,6 +5,8 @@ import java.security.NoSuchAlgorithmException;
 import java.security.PublicKey;
 import java.security.spec.InvalidKeySpecException;
 import java.security.spec.X509EncodedKeySpec;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.Base64;
 import java.util.HashMap;
 import java.util.List;
@@ -19,6 +21,10 @@ import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
 import org.springframework.stereotype.Service;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
@@ -82,7 +88,10 @@ public class AuthKeycloakServiceImpl implements IAuthKeycloakService{
         try {
             PublicKey publicKey = getPublicKey(publicKeyString);
             Claims claims = Jwts.parser().setSigningKey(publicKey).build().parseClaimsJws(jwt).getBody();
-
+            String jti = claims.getId();
+            if (jti != null && Boolean.TRUE.equals(redis.hasKey(blacklistPrefix + jti))) {
+                throw new UserException("Token revocado", 401);
+            }
             @SuppressWarnings("unchecked")
             UserDTO user = UserDTO.builder()
             .id(claims.get("sub").toString())
@@ -94,6 +103,8 @@ public class AuthKeycloakServiceImpl implements IAuthKeycloakService{
             .build();
 
             return user;
+        } catch (UserException e) {
+            throw e;
         } catch (Exception e) {
             logger.warn("Token inválido: {}", e.getMessage());
             throw new UserException("Token inválido", 401);
@@ -108,17 +119,26 @@ public class AuthKeycloakServiceImpl implements IAuthKeycloakService{
     }
 
     @Override
-    public void logoutAndBlacklist(String authHeader, HttpServletRequest request) {
-        String token = (authHeader != null && authHeader.startsWith("Bearer ")) ? authHeader.substring(7) : null;
-        if (token == null) return;
-        keycloakProvider.revoke(token);
-        String jti = JwtUtils.getJti(token);
-        long ttl = JwtUtils.getTtlSeconds(token);
-        if (jti != null && ttl > 0) {
-            redis.opsForValue().set(blacklistPrefix + jti, "1", java.time.Duration.ofSeconds(ttl));
+    public void logoutAndBlacklist(HttpServletRequest request) {
+
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+
+        if (!(auth instanceof JwtAuthenticationToken jwtAuth)) {
+            return;
         }
-        //Publico evento de logout para micro de auditoria
-        eventPublisher.publishEvent(new UserLoggedOutEvent(token, request));
+
+        Jwt jwt = jwtAuth.getToken();
+
+        String jti = jwt.getId();
+        Instant exp = jwt.getExpiresAt();
+
+        if (jti != null && exp != null) {
+            long ttl = Duration.between(Instant.now(), exp).getSeconds();
+            if (ttl > 0) {
+                redis.opsForValue()
+                    .set(blacklistPrefix + jti, "1", Duration.ofSeconds(ttl));
+            }
+        }
     }
 
     @SuppressWarnings("unchecked")
