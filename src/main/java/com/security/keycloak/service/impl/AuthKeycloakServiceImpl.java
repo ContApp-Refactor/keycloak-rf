@@ -38,13 +38,10 @@ import com.security.keycloak.controller.exception.UserException;
 import com.security.keycloak.dtos.AuthDTO;
 import com.security.keycloak.dtos.UserDTO;
 import com.security.keycloak.event.UserLoggedInEvent;
-import com.security.keycloak.event.UserLoggedOutEvent;
 import com.security.keycloak.service.IAuthKeycloakService;
 import com.security.keycloak.util.JwtUtils;
 import com.security.keycloak.util.KeycloakProvider;
 
-import io.jsonwebtoken.Claims;
-import io.jsonwebtoken.Jwts;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 
@@ -74,42 +71,40 @@ public class AuthKeycloakServiceImpl implements IAuthKeycloakService{
     @Value("${jwt.public.key}")
     private  String publicKeyString;
 
-    @Override
-    public UserDTO getCurrentUser(String authorizationHeader) throws NoSuchAlgorithmException, InvalidKeySpecException {
-        String jwt = null;
-        if (authorizationHeader != null && authorizationHeader.startsWith("Bearer ")) {
-            jwt = authorizationHeader.substring(7);
-        }
+    @Value("${app.jwt.refresh-prefix:jwt:refresh:}")
+    private String refreshPrefix;
 
-        if (jwt == null) {
+    @Value("${app.jwt.refresh-ttl-days:7}")
+    private long refreshTtlDays;
+
+    @Override
+    public UserDTO getCurrentUser() {
+
+        Authentication auth = SecurityContextHolder
+                .getContext()
+                .getAuthentication();
+
+        if (!(auth instanceof JwtAuthenticationToken jwtAuth)) {
             throw new UserException("No autorizado", 401);
         }
 
-        try {
-            PublicKey publicKey = getPublicKey(publicKeyString);
-            Claims claims = Jwts.parser().setSigningKey(publicKey).build().parseClaimsJws(jwt).getBody();
-            String jti = claims.getId();
-            if (jti != null && Boolean.TRUE.equals(redis.hasKey(blacklistPrefix + jti))) {
-                throw new UserException("Token revocado", 401);
-            }
-            @SuppressWarnings("unchecked")
-            UserDTO user = UserDTO.builder()
-            .id(claims.get("sub").toString())
-            .username(claims.get("preferred_username").toString())
-            .email("** email **")
-            .firstName(claims.get("given_name").toString())
-            .lastName(claims.get("family_name").toString())
-            .roles((List<String>) (((Map<String, Object>) claims.get("realm_access"))).get("roles"))
-            .build();
+        Jwt jwt = jwtAuth.getToken();
 
-            return user;
-        } catch (UserException e) {
-            throw e;
-        } catch (Exception e) {
-            logger.warn("Token inválido: {}", e.getMessage());
-            throw new UserException("Token inválido", 401);
-        }
+        @SuppressWarnings("unchecked")
+        List<String> roles =
+            (List<String>) ((Map<String, Object>)
+                jwt.getClaims().get("realm_access")).get("roles");
+
+        return UserDTO.builder()
+                .id(jwt.getSubject())
+                .username(jwt.getClaimAsString("preferred_username"))
+                .email("** email **")
+                .firstName(jwt.getClaimAsString("given_name"))
+                .lastName(jwt.getClaimAsString("family_name"))
+                .roles(roles)
+                .build();
     }
+
     
     private PublicKey getPublicKey(String publicKeyString) throws NoSuchAlgorithmException, InvalidKeySpecException {
         byte[] publicKeyBytes = Base64.getDecoder().decode(publicKeyString);
@@ -139,6 +134,12 @@ public class AuthKeycloakServiceImpl implements IAuthKeycloakService{
                     .set(blacklistPrefix + jti, "1", Duration.ofSeconds(ttl));
             }
         }
+
+        String refreshToken = request.getHeader("X-Refresh-Token");
+        if (refreshToken != null) {
+            redis.delete(refreshPrefix + refreshToken);
+        }
+
     }
 
     @SuppressWarnings("unchecked")
@@ -166,7 +167,7 @@ public class AuthKeycloakServiceImpl implements IAuthKeycloakService{
             Map<String, Object> responseMap = mapper.readValue(responseBody, Map.class);
             String accessToken = (String) responseMap.get("access_token");
 
-            // Check if user is enabled
+            
             String userId = JwtUtils.getSub(accessToken);
             if (userId != null) {
                 var userRep = keycloakProvider.getUserResource().get(userId).toRepresentation();
@@ -176,21 +177,23 @@ public class AuthKeycloakServiceImpl implements IAuthKeycloakService{
             }
 
             String rptToken = getTokenRPT(accessToken);
+            String jti = JwtUtils.getJti(rptToken);
+            userId = JwtUtils.getSub(rptToken);
+
+            String refreshToken = createRefreshToken(userId, jti);
 
             Object expiresInObject = responseMap.get("expires_in");
             Object refreshExpires = responseMap.get("refresh_expires_in");
 
             Map<String, Object> accessTokenInfo = new HashMap<>();
             accessTokenInfo.put("access_token", rptToken);
+            accessTokenInfo.put("refresh_token", refreshToken);
             accessTokenInfo.put("expires_in", expiresInObject);
-            accessTokenInfo.put("refresh_expires_in", refreshExpires);
-
-            String accessTokenJson = mapper.writeValueAsString(accessTokenInfo);
 
             //Publico evento de token para micro de auditoria
             eventPublisher.publishEvent(new UserLoggedInEvent(rptToken, request));
 
-            return accessTokenJson;
+            return mapper.writeValueAsString(accessTokenInfo);
         } catch (RestClientException e) {
             logger.warn("Intento de login fallido para usuario: {}", authDTO.getUsername());
             throw new UserException("Credenciales inválidas", 401);
@@ -223,5 +226,98 @@ public class AuthKeycloakServiceImpl implements IAuthKeycloakService{
 
         return accessToken;
     }
+
+    private String getTokenRPTFromRefresh() throws JsonProcessingException {
+
+        MultiValueMap<String, String> formData = new LinkedMultiValueMap<>();
+        formData.add("grant_type", "client_credentials");
+        formData.add("client_id", CLIENT_ID);
+        formData.add("client_secret", CLIENT_SECRET);
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
+
+        HttpEntity<MultiValueMap<String, String>> requestEntity =
+                new HttpEntity<>(formData, headers);
+
+        ResponseEntity<String> response =
+                new RestTemplate().postForEntity(tokenUrl, requestEntity, String.class);
+
+        Map<String, Object> responseMap =
+                new ObjectMapper().readValue(response.getBody(), Map.class);
+
+        return (String) responseMap.get("access_token");
+    }
+
+
+    private String createRefreshToken(String userId, String accessJti) {
+        String refreshToken = java.util.UUID.randomUUID().toString();
+
+        Map<String, String> data = new HashMap<>();
+        data.put("userId", userId);
+        data.put("accessJti", accessJti);
+
+        try {
+            String value = new ObjectMapper().writeValueAsString(data);
+
+            redis.opsForValue().set(
+                refreshPrefix + refreshToken,
+                value,
+                Duration.ofDays(refreshTtlDays)
+            );
+
+            return refreshToken;
+        } catch (JsonProcessingException e) {
+            throw new UserException("Error creando refresh token", 500);
+        }
+    }
+
+    @Override
+    public String refreshToken(String refreshToken) {
+
+        String key = refreshPrefix + refreshToken;
+        String value = redis.opsForValue().get(key);
+
+        if (value == null) {
+            throw new UserException("Refresh token inválido", 401);
+        }
+
+        try {
+            ObjectMapper mapper = new ObjectMapper();
+            Map<String, String> data = mapper.readValue(value, Map.class);
+
+            String oldJti = data.get("accessJti");
+
+            // si el access token fue revocado → refresh inválido
+            if (Boolean.TRUE.equals(redis.hasKey(blacklistPrefix + oldJti))) {
+                redis.delete(key);
+                throw new UserException("Sesión inválida", 401);
+            }
+
+            // emitir nuevo token
+            String newAccessToken = getTokenRPTFromRefresh();
+
+            String newJti = JwtUtils.getJti(newAccessToken);
+            String newRefreshToken = createRefreshToken(data.get("userId"), newJti);
+
+            // ROTACIÓN
+            redis.delete(key);
+
+            Map<String, Object> response = new HashMap<>();
+            response.put("access_token", newAccessToken);
+            response.put("refresh_token", newRefreshToken);
+
+            eventPublisher.publishEvent(
+                new UserLoggedInEvent(newAccessToken, null)
+            );
+
+            return mapper.writeValueAsString(response);
+        } catch (JsonProcessingException e) {
+            throw new UserException("Error procesando refresh token", 500);
+        }
+    }
+
+
+    
 }
 

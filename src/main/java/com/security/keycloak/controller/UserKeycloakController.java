@@ -139,7 +139,7 @@ public class UserKeycloakController {
     @GetMapping("/getCurrentUser")
     public UserDTO obtenerUsername(@RequestHeader("Authorization") String authorizationHeader)
             throws NoSuchAlgorithmException, InvalidKeySpecException {
-        return authKeycloakService.getCurrentUser(authorizationHeader);
+        return authKeycloakService.getCurrentUser();
     }
 
     @Operation(summary = "Obtener lista de roles disponibles", description = "Recupera una lista de todos los roles personalizados disponibles en el sistema.", responses = {

@@ -13,7 +13,8 @@ import jakarta.servlet.http.HttpServletRequest;
 public interface IAuthKeycloakService {
 
     String getToken(AuthDTO authDTO, HttpServletRequest request) throws JsonMappingException, JsonProcessingException, RuntimeException;
-    UserDTO getCurrentUser(String authorizationHeader) throws NoSuchAlgorithmException, InvalidKeySpecException;
+    UserDTO getCurrentUser() throws NoSuchAlgorithmException, InvalidKeySpecException;
     void logoutAndBlacklist(HttpServletRequest request);
+    public String refreshToken(String refreshToken);
 }
     

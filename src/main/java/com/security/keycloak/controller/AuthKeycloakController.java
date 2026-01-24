@@ -1,20 +1,20 @@
 package com.security.keycloak.controller;
 
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonMappingException;
 import com.security.keycloak.dtos.AuthDTO;
+import com.security.keycloak.dtos.RefreshTokenDTO;
 import com.security.keycloak.service.IAuthKeycloakService;
 import com.security.keycloak.service.impl.AuthKeycloakServiceImpl;
+
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 
@@ -46,4 +46,12 @@ public class AuthKeycloakController {
         authKeycloakService.logoutAndBlacklist(request);
         return ResponseEntity.noContent().build();
     }
+
+    @PostMapping("/refresh")
+    public String refresh(@Valid @RequestBody RefreshTokenDTO dto)
+            throws JsonProcessingException {
+
+        return authKeycloakService.refreshToken(dto.getRefreshToken());
+    }
+
 }

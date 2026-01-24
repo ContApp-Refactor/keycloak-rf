@@ -37,6 +37,7 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                 .requestMatchers(
                         "/api/keycloak/token/**",
+                        "/api/keycloak/refresh",
                         "/api/keycloak/register",
                         "/api/keycloak/forgot-password",
                         "/api/keycloak/reset-password",
