@@ -1,6 +1,7 @@
 package com.security.keycloak.util;
 
 import org.jboss.resteasy.client.jaxrs.internal.ResteasyClientBuilderImpl;
+import org.keycloak.OAuth2Constants;
 import org.keycloak.admin.client.Keycloak;
 import org.keycloak.admin.client.KeycloakBuilder;
 import org.keycloak.admin.client.resource.RealmResource;
@@ -57,6 +58,7 @@ public class KeycloakProvider {
                 .clientId(clientId)
                 .username(username)
                 .password(password)
+                .grantType(OAuth2Constants.PASSWORD)
                 .resteasyClient(new ResteasyClientBuilderImpl()
                         .connectionPoolSize(10)
                         .build());

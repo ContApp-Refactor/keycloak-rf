@@ -16,5 +16,6 @@ public interface IAuthKeycloakService {
     UserDTO getCurrentUser() throws NoSuchAlgorithmException, InvalidKeySpecException;
     void logoutAndBlacklist(HttpServletRequest request);
     public String refreshToken(String refreshToken);
+    public void sendPasswordReset(String email);
 }
     

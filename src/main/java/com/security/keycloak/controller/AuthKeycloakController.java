@@ -11,6 +11,7 @@ import org.springframework.web.bind.annotation.RestController;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonMappingException;
 import com.security.keycloak.dtos.AuthDTO;
+import com.security.keycloak.dtos.ForgotPasswordDTO;
 import com.security.keycloak.dtos.RefreshTokenDTO;
 import com.security.keycloak.service.IAuthKeycloakService;
 import com.security.keycloak.service.impl.AuthKeycloakServiceImpl;
@@ -53,5 +54,14 @@ public class AuthKeycloakController {
 
         return authKeycloakService.refreshToken(dto.getRefreshToken());
     }
+
+    @PostMapping("/forgot-password")
+    public ResponseEntity<Void> forgotPassword(
+            @Valid @RequestBody ForgotPasswordDTO dto) {
+
+        authKeycloakService.sendPasswordReset(dto.getEmail());
+        return ResponseEntity.noContent().build();
+    }
+
 
 }

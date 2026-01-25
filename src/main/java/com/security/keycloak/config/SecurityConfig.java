@@ -36,8 +36,8 @@ public class SecurityConfig {
                 .authorizeHttpRequests(http -> http
                 .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                 .requestMatchers(
-                        "/api/keycloak/token/**",
-                        "/api/keycloak/refresh",
+                        "/api/keycloak/token/",
+                        "/api/keycloak/token/refresh",
                         "/api/keycloak/register",
                         "/api/keycloak/forgot-password",
                         "/api/keycloak/reset-password",
@@ -45,6 +45,9 @@ public class SecurityConfig {
                         "/v3/api-docs/**",
                         "/actuator/**"
                 ).permitAll()
+                .requestMatchers(
+                "/api/keycloak/token/logout"
+                ).authenticated()
                 .anyRequest().authenticated()
                 )
                 .oauth2ResourceServer(oauth -> oauth

@@ -116,30 +116,27 @@ public class AuthKeycloakServiceImpl implements IAuthKeycloakService{
     @Override
     public void logoutAndBlacklist(HttpServletRequest request) {
 
-        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-
-        if (!(auth instanceof JwtAuthenticationToken jwtAuth)) {
-            return;
-        }
-
-        Jwt jwt = jwtAuth.getToken();
-
-        String jti = jwt.getId();
-        Instant exp = jwt.getExpiresAt();
-
-        if (jti != null && exp != null) {
-            long ttl = Duration.between(Instant.now(), exp).getSeconds();
-            if (ttl > 0) {
-                redis.opsForValue()
-                    .set(blacklistPrefix + jti, "1", Duration.ofSeconds(ttl));
-            }
-        }
-
         String refreshToken = request.getHeader("X-Refresh-Token");
         if (refreshToken != null) {
             redis.delete(refreshPrefix + refreshToken);
         }
 
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+
+        if (auth instanceof JwtAuthenticationToken jwtAuth) {
+            Jwt jwt = jwtAuth.getToken();
+
+            String jti = jwt.getId();
+            Instant exp = jwt.getExpiresAt();
+
+            if (jti != null && exp != null) {
+                long ttl = Duration.between(Instant.now(), exp).getSeconds();
+                if (ttl > 0) {
+                    redis.opsForValue()
+                        .set(blacklistPrefix + jti, "1", Duration.ofSeconds(ttl));
+                }
+            }
+        }
     }
 
     @SuppressWarnings("unchecked")
@@ -176,22 +173,20 @@ public class AuthKeycloakServiceImpl implements IAuthKeycloakService{
                 }
             }
 
-            String rptToken = getTokenRPT(accessToken);
-            String jti = JwtUtils.getJti(rptToken);
-            userId = JwtUtils.getSub(rptToken);
+
+            String jti = JwtUtils.getJti(accessToken);
 
             String refreshToken = createRefreshToken(userId, jti);
 
             Object expiresInObject = responseMap.get("expires_in");
-            Object refreshExpires = responseMap.get("refresh_expires_in");
 
             Map<String, Object> accessTokenInfo = new HashMap<>();
-            accessTokenInfo.put("access_token", rptToken);
+            accessTokenInfo.put("access_token", accessToken);
             accessTokenInfo.put("refresh_token", refreshToken);
             accessTokenInfo.put("expires_in", expiresInObject);
 
             //Publico evento de token para micro de auditoria
-            eventPublisher.publishEvent(new UserLoggedInEvent(rptToken, request));
+            eventPublisher.publishEvent(new UserLoggedInEvent(accessToken, request));
 
             return mapper.writeValueAsString(accessTokenInfo);
         } catch (RestClientException e) {
@@ -315,6 +310,33 @@ public class AuthKeycloakServiceImpl implements IAuthKeycloakService{
         } catch (JsonProcessingException e) {
             throw new UserException("Error procesando refresh token", 500);
         }
+    }
+
+    @Override
+    public void sendPasswordReset(String email) {
+
+        var users = keycloakProvider
+                .getRealmResource()
+                .users()
+                .search(email, true);
+
+        if (users.isEmpty()) {
+            // si no existe no se informara nada, con tal de proteger si el email existe o no
+            return;
+        }
+
+        var user = users.get(0);
+
+        if (!Boolean.TRUE.equals(user.isEnabled())) {
+            throw new UserException("Usuario inactivo", 400);
+        }
+
+        keycloakProvider
+                .getUserResource()
+                .get(user.getId())
+                .executeActionsEmail(
+                        List.of("UPDATE_PASSWORD")
+                );
     }
 
 

@@ -1,7 +1,6 @@
 package com.security.keycloak.service.impl;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import java.util.regex.Pattern;
 
@@ -121,6 +120,7 @@ public class UserKeycloakServiceImpl implements IUserKeycloakService {
 
     @Override
     public UserDTO createUser(UserDTO userDTO, String role) {
+        log.info("Admin token: {}", keycloakProvider.getAdminAccessToken());
         RealmResource realm = keycloakProvider.getRealmResource();
         UsersResource usersResource = realm.users();
 
@@ -157,13 +157,9 @@ public class UserKeycloakServiceImpl implements IUserKeycloakService {
         user.setFirstName(userDTO.getFirstName());
         user.setLastName(userDTO.getLastName());
         user.setEnabled(true);
+        user.setEmailVerified(true);
 
-        CredentialRepresentation credential = new CredentialRepresentation();
-        credential.setTemporary(false);
-        credential.setType(CredentialRepresentation.PASSWORD);
-        credential.setValue(userDTO.getPassword());
 
-        user.setCredentials(Collections.singletonList(credential));
 
         try {
             Response response = usersResource.create(user);
@@ -180,6 +176,12 @@ public class UserKeycloakServiceImpl implements IUserKeycloakService {
                 }
 
                 UserRepresentation createdUser = usersResource.get(userId).toRepresentation();
+                CredentialRepresentation passwordCred = new CredentialRepresentation();
+                passwordCred.setType(CredentialRepresentation.PASSWORD);
+                passwordCred.setTemporary(false);
+                passwordCred.setValue(userDTO.getPassword());
+
+                usersResource.get(userId).resetPassword(passwordCred);
 
                 // Asignar rol 
                 List<String> rolesToAssign = new ArrayList<>();
