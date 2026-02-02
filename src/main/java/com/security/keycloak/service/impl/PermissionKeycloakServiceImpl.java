@@ -205,7 +205,7 @@ public class PermissionKeycloakServiceImpl implements IPermissionKeycloakService
                     }
 
                     for (JsonNode policy : policiesNode) {
-                        if (!"resource".equals(policy.path("type").asText()))
+                        if (!"scope".equals(policy.path("type").asText()))
                             continue;
 
                         String permissionName = policy.path("name").asText();
@@ -417,7 +417,7 @@ public class PermissionKeycloakServiceImpl implements IPermissionKeycloakService
 
                 if (policiesNode != null && policiesNode.isArray()) {
                     for (JsonNode policy : policiesNode) {
-                        if ("resource".equals(policy.path("type").asText()) &&
+                        if ("scope".equals(policy.path("type").asText()) &&
                                 permissionName.equals(policy.path("name").asText())) {
 
                             JsonNode configNode = policy.path("config");
