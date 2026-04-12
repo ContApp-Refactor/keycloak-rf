@@ -1,13 +1,7 @@
 package com.security.keycloak.service.impl;
 
-import java.security.KeyFactory;
-import java.security.NoSuchAlgorithmException;
-import java.security.PublicKey;
-import java.security.spec.InvalidKeySpecException;
-import java.security.spec.X509EncodedKeySpec;
 import java.time.Duration;
 import java.time.Instant;
-import java.util.Base64;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -105,14 +99,6 @@ public class AuthKeycloakServiceImpl implements IAuthKeycloakService{
                 .build();
     }
 
-    
-    private PublicKey getPublicKey(String publicKeyString) throws NoSuchAlgorithmException, InvalidKeySpecException {
-        byte[] publicKeyBytes = Base64.getDecoder().decode(publicKeyString);
-        X509EncodedKeySpec keySpec = new X509EncodedKeySpec(publicKeyBytes);
-        KeyFactory keyFactory = KeyFactory.getInstance("RSA");
-        return keyFactory.generatePublic(keySpec);
-    }
-
     @Override
     public void logoutAndBlacklist(HttpServletRequest request) {
 
@@ -122,6 +108,10 @@ public class AuthKeycloakServiceImpl implements IAuthKeycloakService{
         }
 
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        
+        if (!(auth instanceof JwtAuthenticationToken)) {
+            throw new IllegalArgumentException("Token inválido");
+        }
 
         if (auth instanceof JwtAuthenticationToken jwtAuth) {
             Jwt jwt = jwtAuth.getToken();
@@ -191,8 +181,11 @@ public class AuthKeycloakServiceImpl implements IAuthKeycloakService{
             return mapper.writeValueAsString(accessTokenInfo);
         } catch (RestClientException e) {
             logger.warn("Intento de login fallido para usuario: {}", authDTO.getUsername());
-            throw new UserException("Credenciales inválidas", 401);
-        } catch (Exception e) {
+            throw e;
+            
+        } catch (IllegalStateException e) {
+        throw e;
+        }catch (Exception e) {
             logger.error("Error interno en getToken para usuario: {}", authDTO.getUsername(), e);
             throw new UserException("Error interno en autenticación", 500);
         }

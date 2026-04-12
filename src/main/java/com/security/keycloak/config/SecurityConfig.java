@@ -39,7 +39,7 @@ public class SecurityConfig {
                         "/api/keycloak/token/",
                         "/api/keycloak/token/refresh",
                         "/api/keycloak/register",
-                        "/api/keycloak/forgot-password",
+                        "/api/keycloak/token/forgot-password",
                         "/api/keycloak/reset-password",
                         "/swagger-ui/**",
                         "/v3/api-docs/**",
