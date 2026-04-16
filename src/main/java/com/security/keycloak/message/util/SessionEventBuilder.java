@@ -5,7 +5,7 @@ import java.security.NoSuchAlgorithmException;
 import java.security.PublicKey;
 import java.security.spec.InvalidKeySpecException;
 import java.security.spec.X509EncodedKeySpec;
-import java.time.ZonedDateTime;
+import java.time.Instant;
 import java.util.Base64;
 import java.util.List;
 import java.util.Map;
@@ -68,7 +68,7 @@ public class SessionEventBuilder {
                     .userName(username)
                     .userRole(role.toUpperCase())
                     .action(action)
-                    .actionAt(ZonedDateTime.now())
+                    .actionAt(Instant.now())
                     .ipAddress(ipAddressUtil.getClientIpAddress(request))
                     .build();
 
@@ -99,7 +99,7 @@ public class SessionEventBuilder {
     private SessionEventDTO fallbackEvent(HttpServletRequest request, String action) {
         return SessionEventDTO.builder()
                 .action(action)
-                .actionAt(ZonedDateTime.now())
+                .actionAt(Instant.now())
                 .ipAddress(ipAddressUtil.getClientIpAddress(request))
                 .build();
     }

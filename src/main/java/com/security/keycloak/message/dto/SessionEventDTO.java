@@ -1,6 +1,6 @@
 package com.security.keycloak.message.dto;
 
-import java.time.ZonedDateTime;
+import java.time.Instant;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 
@@ -33,7 +33,7 @@ public class SessionEventDTO {
     private String action;
     
     @JsonProperty("action_at")
-    private ZonedDateTime actionAt;
+    private Instant actionAt;
     
     @JsonProperty("ip_address")
     private String ipAddress;
