@@ -10,6 +10,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.security.keycloak.service.IPasswordRecoveryService;
+import com.security.keycloak.validation.ISanitize;
 
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
@@ -31,8 +32,8 @@ public class RecoveryController {
   }
   
   @Data
-  static class ResetDTO {
-    @NotBlank private String token;
+  public static class ResetDTO {
+    @NotBlank @ISanitize private String token;
     @NotBlank @Size(min = 8, max = 64) private String newPassword;
   }
 }
