@@ -1,4 +1,4 @@
-package com.security.keycloak.event;
+package com.security.keycloak.audit.event;
 
 import jakarta.servlet.http.HttpServletRequest;
 

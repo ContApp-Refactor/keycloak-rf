@@ -15,6 +15,8 @@ import org.keycloak.representations.idm.UserRepresentation;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import com.security.keycloak.audit.annotation.Auditable;
+import com.security.keycloak.audit.annotation.OperationType;
 import com.security.keycloak.controller.exception.ConflictException;
 import com.security.keycloak.controller.exception.ResourceNotFoundException;
 import com.security.keycloak.controller.exception.UserException;
@@ -34,17 +36,17 @@ public class UserKeycloakServiceImpl implements IUserKeycloakService {
     @Autowired
     private KeycloakProvider keycloakProvider;
 
-    private static final Pattern STRONG_PASSWORD_PATTERN =
-            Pattern.compile("^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[@$!%*#?&])[A-Za-z\\d@$!%*#?&]{8,20}$");
+    private static final Pattern STRONG_PASSWORD_PATTERN = Pattern
+            .compile("^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[@$!%*#?&])[A-Za-z\\d@$!%*#?&]{8,20}$");
 
     @Override
     public List<UserDTO> findUserByEmail(String email) {
         log.info("Buscando usuario por email exacto: {}", email);
-        
+
         // Usamos searchByEmail(email, true) para una búsqueda exacta
         return keycloakProvider.getRealmResource()
                 .users()
-                .searchByEmail(email, true) 
+                .searchByEmail(email, true)
                 .stream()
                 .map(user -> {
                     List<RoleRepresentation> roles = keycloakProvider.getRealmResource()
@@ -65,7 +67,6 @@ public class UserKeycloakServiceImpl implements IUserKeycloakService {
                 })
                 .toList();
     }
-
 
     @Override
     public List<UserDTO> findAllUsers() {
@@ -92,7 +93,7 @@ public class UserKeycloakServiceImpl implements IUserKeycloakService {
                 })
                 .toList();
     }
-    
+
     @Override
     public List<UserDTO> findUserByUsername(String username) {
         return keycloakProvider.getRealmResource()
@@ -120,6 +121,7 @@ public class UserKeycloakServiceImpl implements IUserKeycloakService {
     }
 
     @Override
+    @Auditable(operationType = OperationType.CREATE, affectedTable = "USER")
     public UserDTO createUser(UserDTO userDTO, String role) {
         RealmResource realm = keycloakProvider.getRealmResource();
         UsersResource usersResource = realm.users();
@@ -130,10 +132,12 @@ public class UserKeycloakServiceImpl implements IUserKeycloakService {
             throw new UserException("La contraseña es obligatoria al crear un usuario", 400);
         }
         if (password.length() < 8 || password.length() > 20) {
-             throw new UserException("La contraseña debe tener entre 8 y 20 caracteres", 400);
+            throw new UserException("La contraseña debe tener entre 8 y 20 caracteres", 400);
         }
         if (!STRONG_PASSWORD_PATTERN.matcher(password).matches()) {
-             throw new UserException("La contraseña debe contener al menos una mayúscula, una minúscula, un número y un carácter especial (@$!%*#?&)", 400);
+            throw new UserException(
+                    "La contraseña debe contener al menos una mayúscula, una minúscula, un número y un carácter especial (@$!%*#?&)",
+                    400);
         }
 
         // Validar si ya existe un usuario con ese username
@@ -181,7 +185,7 @@ public class UserKeycloakServiceImpl implements IUserKeycloakService {
 
                 UserRepresentation createdUser = usersResource.get(userId).toRepresentation();
 
-                // Asignar rol 
+                // Asignar rol
                 List<String> rolesToAssign = new ArrayList<>();
                 if (role != null && !role.isBlank()) {
                     rolesToAssign.add(role);
@@ -192,8 +196,8 @@ public class UserKeycloakServiceImpl implements IUserKeycloakService {
                 }
 
                 List<RoleRepresentation> rolesRep = realm.roles().list().stream()
-                    .filter(r -> rolesToAssign.contains(r.getName()))
-                    .toList();
+                        .filter(r -> rolesToAssign.contains(r.getName()))
+                        .toList();
 
                 if (!rolesRep.isEmpty()) {
                     realm.users().get(userId).roles().realmLevel().add(rolesRep);
@@ -226,9 +230,12 @@ public class UserKeycloakServiceImpl implements IUserKeycloakService {
 
         } catch (ClientErrorException cee) {
             int status = cee.getResponse() != null ? cee.getResponse().getStatus() : 500;
-            log.error("Error de Keycloak al crear usuario '{}'. Status={} - {}", userDTO.getUsername(), status, cee.getMessage(), cee);
-            if (status == 409) throw new ConflictException("Ya existe un usuario con este correo electrónico o nombre de usuario");
-            if (status == 404) throw new ResourceNotFoundException("Recurso de Keycloak no encontrado");
+            log.error("Error de Keycloak al crear usuario '{}'. Status={} - {}", userDTO.getUsername(), status,
+                    cee.getMessage(), cee);
+            if (status == 409)
+                throw new ConflictException("Ya existe un usuario con este correo electrónico o nombre de usuario");
+            if (status == 404)
+                throw new ResourceNotFoundException("Recurso de Keycloak no encontrado");
             throw new UserException("Error al comunicarse con el servidor de autenticación", 500);
         } catch (ConflictException | UserException e) {
             throw e; // Re-lanzar excepciones ya manejadas
@@ -238,8 +245,8 @@ public class UserKeycloakServiceImpl implements IUserKeycloakService {
         }
     }
 
-
     @Override
+    @Auditable(operationType = OperationType.DELETE, affectedTable = "USER")
     public void deleteUser(String userId) {
         try {
             // Verificar que el usuario existe antes de eliminar
@@ -247,7 +254,7 @@ public class UserKeycloakServiceImpl implements IUserKeycloakService {
             if (user == null) {
                 throw new ResourceNotFoundException("Usuario", "id", userId);
             }
-            
+
             keycloakProvider.getUserResource().get(userId).remove();
             log.info("Usuario con ID '{}' eliminado exitosamente", userId);
         } catch (jakarta.ws.rs.NotFoundException e) {
@@ -260,6 +267,7 @@ public class UserKeycloakServiceImpl implements IUserKeycloakService {
     }
 
     @Override
+    @Auditable(operationType = OperationType.UPDATE, affectedTable = "USER")
     public UserDTO updateUser(String userId, @NonNull UserDTO userDTO) {
         try {
             // Verificar que el usuario existe
@@ -283,7 +291,9 @@ public class UserKeycloakServiceImpl implements IUserKeycloakService {
                     throw new UserException("La contraseña debe tener entre 8 y 20 caracteres", 400);
                 }
                 if (!STRONG_PASSWORD_PATTERN.matcher(password).matches()) {
-                    throw new UserException("La contraseña debe contener al menos una mayúscula, una minúscula, un número y un carácter especial (@$!%*#?&)", 400);
+                    throw new UserException(
+                            "La contraseña debe contener al menos una mayúscula, una minúscula, un número y un carácter especial (@$!%*#?&)",
+                            400);
                 }
                 CredentialRepresentation credentialRepresentation = new CredentialRepresentation();
                 credentialRepresentation.setTemporary(false);
@@ -293,36 +303,36 @@ public class UserKeycloakServiceImpl implements IUserKeycloakService {
             }
 
             RealmResource realmResource = keycloakProvider.getRealmResource();
-            
+
             // Actualizar roles si se proporcionan
             if (userDTO.getRoles() != null && !userDTO.getRoles().isEmpty()) {
                 List<RoleRepresentation> roles = realmResource
-                    .roles()
-                    .list()
-                    .stream()
-                    .filter(role -> userDTO.getRoles()
+                        .roles()
+                        .list()
                         .stream()
-                        .anyMatch(roleName -> roleName.equalsIgnoreCase(role.getName())))
-                    .toList();
-                
+                        .filter(role -> userDTO.getRoles()
+                                .stream()
+                                .anyMatch(roleName -> roleName.equalsIgnoreCase(role.getName())))
+                        .toList();
+
                 // Remover roles actuales
                 realmResource.users()
-                    .get(userId)
-                    .roles()
-                    .realmLevel()
-                    .remove(realmResource.roles().list());
-                
+                        .get(userId)
+                        .roles()
+                        .realmLevel()
+                        .remove(realmResource.roles().list());
+
                 // Agregar nuevos roles
                 realmResource.users()
-                    .get(userId)
-                    .roles()
-                    .realmLevel()
-                    .add(roles);
+                        .get(userId)
+                        .roles()
+                        .realmLevel()
+                        .add(roles);
             }
 
             UserResource userResource = keycloakProvider.getUserResource().get(userId);
             userResource.update(user);
-            
+
             log.info("Usuario con ID '{}' actualizado exitosamente", userId);
 
             return userDTO;
@@ -341,26 +351,26 @@ public class UserKeycloakServiceImpl implements IUserKeycloakService {
     public UserDTO findUserById(String userId) {
         try {
             UserRepresentation user = keycloakProvider.getUserResource().get(userId).toRepresentation();
-            
+
             if (user == null) {
                 throw new ResourceNotFoundException("Usuario", "id", userId);
             }
 
             List<RoleRepresentation> roles = keycloakProvider.getRealmResource()
-                .users()
-                .get(user.getId())
-                .roles()
-                .realmLevel()
-                .listEffective();
+                    .users()
+                    .get(user.getId())
+                    .roles()
+                    .realmLevel()
+                    .listEffective();
 
             return UserDTO.builder()
-                .id(user.getId())
-                .username(user.getUsername())
-                .email(user.getEmail())
-                .firstName(user.getFirstName())
-                .lastName(user.getLastName())
-                .roles(roles.stream().map(RoleRepresentation::getName).toList())
-                .build();
+                    .id(user.getId())
+                    .username(user.getUsername())
+                    .email(user.getEmail())
+                    .firstName(user.getFirstName())
+                    .lastName(user.getLastName())
+                    .roles(roles.stream().map(RoleRepresentation::getName).toList())
+                    .build();
         } catch (jakarta.ws.rs.NotFoundException e) {
             log.error("Usuario con ID '{}' no encontrado", userId);
             throw new ResourceNotFoundException("Usuario", "id", userId);
@@ -373,12 +383,13 @@ public class UserKeycloakServiceImpl implements IUserKeycloakService {
     @Override
     public List<String> getRoles() {
         return keycloakProvider.getRealmResource()
-            .roles()
-            .list()
-            .stream()
-            .map(RoleRepresentation::getName)
-            .filter(role -> !role.startsWith("default-roles") && !role.equals("offline_access") && !role.equals("uma_protection"))
-            .toList();
+                .roles()
+                .list()
+                .stream()
+                .map(RoleRepresentation::getName)
+                .filter(role -> !role.startsWith("default-roles") && !role.equals("offline_access")
+                        && !role.equals("uma_protection"))
+                .toList();
     }
 
 }

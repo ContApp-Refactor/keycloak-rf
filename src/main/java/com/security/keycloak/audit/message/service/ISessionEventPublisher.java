@@ -1,6 +1,6 @@
-package com.security.keycloak.message.service;
+package com.security.keycloak.audit.message.service;
 
-import com.security.keycloak.message.dto.SessionEventDTO;
+import com.security.keycloak.audit.message.dto.SessionEventDTO;
 
 public interface ISessionEventPublisher {
 

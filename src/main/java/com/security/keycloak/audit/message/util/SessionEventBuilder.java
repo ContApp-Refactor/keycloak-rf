@@ -1,11 +1,11 @@
-package com.security.keycloak.message.util;
+package com.security.keycloak.audit.message.util;
 
 import java.security.KeyFactory;
 import java.security.NoSuchAlgorithmException;
 import java.security.PublicKey;
 import java.security.spec.InvalidKeySpecException;
 import java.security.spec.X509EncodedKeySpec;
-import java.time.ZonedDateTime;
+import java.time.Instant;
 import java.util.Base64;
 import java.util.List;
 import java.util.Map;
@@ -13,7 +13,7 @@ import java.util.Map;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
-import com.security.keycloak.message.dto.SessionEventDTO;
+import com.security.keycloak.audit.message.dto.SessionEventDTO;
 
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
@@ -42,9 +42,9 @@ public class SessionEventBuilder {
 
     private SessionEventDTO buildEvent(String jwtToken, HttpServletRequest request, String action) {
         try {
-            PublicKey publicKey = getPublicKey(publicKeyString); 
+            PublicKey publicKey = getPublicKey(publicKeyString);
             Claims claims = Jwts.parser()
-                    .verifyWith(publicKey) 
+                    .verifyWith(publicKey)
                     .build()
                     .parseSignedClaims(jwtToken)
                     .getPayload();
@@ -55,20 +55,20 @@ public class SessionEventBuilder {
                 username = (String) claims.get("email");
             }
 
-            String role = extractRole(claims);
+            List<String> roles = extractRoles(claims);
 
-            String sessionId = (String) claims.get("sid"); 
+            String sessionId = (String) claims.get("sid");
             if (sessionId == null) {
                 sessionId = (String) claims.get("session_state");
             }
 
             return SessionEventDTO.builder()
                     .sessionId(sessionId)
-                    .userId(userId) 
+                    .userId(userId)
                     .userName(username)
-                    .userRole(role.toUpperCase())
+                    .userRole(roles)
                     .action(action)
-                    .actionAt(ZonedDateTime.now())
+                    .actionAt(Instant.now())
                     .ipAddress(ipAddressUtil.getClientIpAddress(request))
                     .build();
 
@@ -79,27 +79,33 @@ public class SessionEventBuilder {
     }
 
     @SuppressWarnings("unchecked")
-    private String extractRole(Claims claims) {
-        try {
-            Map<String, Object> realmAccess = (Map<String, Object>) claims.get("realm_access");
-            if (realmAccess != null && realmAccess.containsKey("roles")) {
-                List<String> roles = (List<String>) realmAccess.get("roles");
-                return roles.stream()
-                        .filter(r -> !r.equals("offline_access")
-                                && !r.startsWith("default-roles-")
-                                && !r.equals("uma_authorization"))
-                        .findFirst()
-                        .orElse(roles.get(0));
-            }
-        } catch (Exception ignored) {
+    private List<String> extractRoles(Claims claims) {
+
+        Map<String, Object> realmAccess = (Map<String, Object>) claims.get("realm_access");
+
+        if (realmAccess == null) {
+            return List.of();
         }
-        return "UNKNOWN";
+
+        Object rolesObj = realmAccess.get("roles");
+
+        if (!(rolesObj instanceof List<?> rolesList)) {
+            return List.of();
+        }
+
+        return rolesList.stream()
+                .filter(String.class::isInstance)
+                .map(String.class::cast)
+                .filter(r -> !r.equals("offline_access"))
+                .filter(r -> !r.startsWith("default-roles-"))
+                .filter(r -> !r.equals("uma_authorization"))
+                .toList();
     }
 
     private SessionEventDTO fallbackEvent(HttpServletRequest request, String action) {
         return SessionEventDTO.builder()
                 .action(action)
-                .actionAt(ZonedDateTime.now())
+                .actionAt(Instant.now())
                 .ipAddress(ipAddressUtil.getClientIpAddress(request))
                 .build();
     }

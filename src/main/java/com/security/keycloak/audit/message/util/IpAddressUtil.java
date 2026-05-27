@@ -1,4 +1,4 @@
-package com.security.keycloak.message.util;
+package com.security.keycloak.audit.message.util;
 
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;

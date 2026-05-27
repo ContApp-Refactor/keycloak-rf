@@ -28,11 +28,11 @@ import org.springframework.web.client.RestTemplate;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.security.keycloak.audit.event.UserLoggedInEvent;
+import com.security.keycloak.audit.event.UserLoggedOutEvent;
 import com.security.keycloak.controller.exception.UserException;
 import com.security.keycloak.dtos.AuthDTO;
 import com.security.keycloak.dtos.UserDTO;
-import com.security.keycloak.event.UserLoggedInEvent;
-import com.security.keycloak.event.UserLoggedOutEvent;
 import com.security.keycloak.service.IAuthKeycloakService;
 import com.security.keycloak.util.JwtUtils;
 import com.security.keycloak.util.KeycloakProvider;
@@ -44,7 +44,7 @@ import lombok.RequiredArgsConstructor;
 
 @Service
 @RequiredArgsConstructor
-public class AuthKeycloakServiceImpl implements IAuthKeycloakService{
+public class AuthKeycloakServiceImpl implements IAuthKeycloakService {
 
     private static final Logger logger = LoggerFactory.getLogger(AuthKeycloakServiceImpl.class);
 
@@ -52,7 +52,7 @@ public class AuthKeycloakServiceImpl implements IAuthKeycloakService{
     private final KeycloakProvider keycloakProvider;
 
     private final ApplicationEventPublisher eventPublisher;
-    
+
     @Value("${app.jwt.blacklist-prefix:jwt:black:}")
     private String blacklistPrefix;
 
@@ -66,7 +66,7 @@ public class AuthKeycloakServiceImpl implements IAuthKeycloakService{
     private String CLIENT_ID;
 
     @Value("${jwt.public.key}")
-    private  String publicKeyString;
+    private String publicKeyString;
 
     @Override
     public UserDTO getCurrentUser(String authorizationHeader) throws NoSuchAlgorithmException, InvalidKeySpecException {
@@ -85,13 +85,13 @@ public class AuthKeycloakServiceImpl implements IAuthKeycloakService{
 
             @SuppressWarnings("unchecked")
             UserDTO user = UserDTO.builder()
-            .id(claims.get("sub").toString())
-            .username(claims.get("preferred_username").toString())
-            .email("** email **")
-            .firstName(claims.get("given_name").toString())
-            .lastName(claims.get("family_name").toString())
-            .roles((List<String>) (((Map<String, Object>) claims.get("realm_access"))).get("roles"))
-            .build();
+                    .id(claims.get("sub").toString())
+                    .username(claims.get("preferred_username").toString())
+                    .email("** email **")
+                    .firstName(claims.get("given_name").toString())
+                    .lastName(claims.get("family_name").toString())
+                    .roles((List<String>) (((Map<String, Object>) claims.get("realm_access"))).get("roles"))
+                    .build();
 
             return user;
         } catch (Exception e) {
@@ -99,7 +99,7 @@ public class AuthKeycloakServiceImpl implements IAuthKeycloakService{
             throw new UserException("Token inválido", 401);
         }
     }
-    
+
     private PublicKey getPublicKey(String publicKeyString) throws NoSuchAlgorithmException, InvalidKeySpecException {
         byte[] publicKeyBytes = Base64.getDecoder().decode(publicKeyString);
         X509EncodedKeySpec keySpec = new X509EncodedKeySpec(publicKeyBytes);
@@ -110,20 +110,22 @@ public class AuthKeycloakServiceImpl implements IAuthKeycloakService{
     @Override
     public void logoutAndBlacklist(String authHeader, HttpServletRequest request) {
         String token = (authHeader != null && authHeader.startsWith("Bearer ")) ? authHeader.substring(7) : null;
-        if (token == null) return;
+        if (token == null)
+            return;
         keycloakProvider.revoke(token);
         String jti = JwtUtils.getJti(token);
         long ttl = JwtUtils.getTtlSeconds(token);
         if (jti != null && ttl > 0) {
             redis.opsForValue().set(blacklistPrefix + jti, "1", java.time.Duration.ofSeconds(ttl));
         }
-        //Publico evento de logout para micro de auditoria
+        // Publico evento de logout para micro de auditoria
         eventPublisher.publishEvent(new UserLoggedOutEvent(token, request));
     }
 
     @SuppressWarnings("unchecked")
     @Override
-    public String getToken(AuthDTO authDTO, HttpServletRequest request) throws JsonMappingException, JsonProcessingException {
+    public String getToken(AuthDTO authDTO, HttpServletRequest request)
+            throws JsonMappingException, JsonProcessingException {
 
         try {
             MultiValueMap<String, String> formData = new LinkedMultiValueMap<>();
@@ -167,7 +169,7 @@ public class AuthKeycloakServiceImpl implements IAuthKeycloakService{
 
             String accessTokenJson = mapper.writeValueAsString(accessTokenInfo);
 
-            //Publico evento de token para micro de auditoria
+            // Publico evento de token para micro de auditoria
             eventPublisher.publishEvent(new UserLoggedInEvent(rptToken, request));
 
             return accessTokenJson;
@@ -179,7 +181,7 @@ public class AuthKeycloakServiceImpl implements IAuthKeycloakService{
             throw new UserException("Error interno en autenticación", 500);
         }
     }
-    
+
     @SuppressWarnings("unchecked")
     public String getTokenRPT(String token) throws JsonMappingException, JsonProcessingException {
 
@@ -204,4 +206,3 @@ public class AuthKeycloakServiceImpl implements IAuthKeycloakService{
         return accessToken;
     }
 }
-
