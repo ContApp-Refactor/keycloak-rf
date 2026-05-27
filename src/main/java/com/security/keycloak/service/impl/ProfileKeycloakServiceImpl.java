@@ -10,6 +10,8 @@ import org.keycloak.representations.idm.RoleRepresentation;
 import org.keycloak.representations.idm.UserRepresentation;
 import org.springframework.stereotype.Service;
 
+import com.security.keycloak.audit.annotation.Auditable;
+import com.security.keycloak.audit.annotation.OperationType;
 import com.security.keycloak.controller.exception.ConflictException;
 import com.security.keycloak.controller.exception.ResourceNotFoundException;
 import com.security.keycloak.dtos.ProfileDTO;
@@ -25,8 +27,10 @@ import lombok.extern.slf4j.Slf4j;
 /**
  * Implementación del servicio de gestión de perfiles en Keycloak.
  * <p>
- * Proporciona operaciones para crear, buscar, actualizar y eliminar perfiles (roles)
- * dentro de un realm de Keycloak, aplicando reglas de negocio y manejo de excepciones.
+ * Proporciona operaciones para crear, buscar, actualizar y eliminar perfiles
+ * (roles)
+ * dentro de un realm de Keycloak, aplicando reglas de negocio y manejo de
+ * excepciones.
  * </p>
  */
 @Service
@@ -49,8 +53,7 @@ public class ProfileKeycloakServiceImpl implements IProfileKeycloakService {
                 "uma_authorization",
                 "offline_access",
                 "default-roles-spring-boot-realm-dev",
-                "default-roles-oauth2-realm"
-        );
+                "default-roles-oauth2-realm");
 
         return keycloakProvider.getRealmResource()
                 .roles()
@@ -100,6 +103,7 @@ public class ProfileKeycloakServiceImpl implements IProfileKeycloakService {
      * @throws ResourceNotFoundException si el recurso de Keycloak no se encuentra.
      */
     @Override
+    @Auditable(operationType = OperationType.CREATE, affectedTable = "PROFILE")
     public ProfileDTO createProfile(ProfileDTO profileDTO) {
         RealmResource realm = keycloakProvider.getRealmResource();
         RolesResource roles = realm.roles();
@@ -127,9 +131,12 @@ public class ProfileKeycloakServiceImpl implements IProfileKeycloakService {
                     .build();
         } catch (ClientErrorException cee) {
             int status = cee.getResponse() != null ? cee.getResponse().getStatus() : 500;
-            log.error("Error de Keycloak al crear perfil ({}). Status={} - {}", roleName, status, cee.getMessage(), cee);
-            if (status == 409) throw new ConflictException("El nombre del perfil ya existe");
-            if (status == 404) throw new ResourceNotFoundException("Recurso de Keycloak no encontrado");
+            log.error("Error de Keycloak al crear perfil ({}). Status={} - {}", roleName, status, cee.getMessage(),
+                    cee);
+            if (status == 409)
+                throw new ConflictException("El nombre del perfil ya existe");
+            if (status == 404)
+                throw new ResourceNotFoundException("Recurso de Keycloak no encontrado");
             throw new RuntimeException("Error de Keycloak (" + status + "): " + cee.getMessage(), cee);
         }
     }
@@ -145,6 +152,7 @@ public class ProfileKeycloakServiceImpl implements IProfileKeycloakService {
      * @throws ResourceNotFoundException si el perfil no existe.
      */
     @Override
+    @Auditable(operationType = OperationType.DELETE, affectedTable = "PROFILE")
     public void deleteProfile(String profileId) {
         RealmResource realm = keycloakProvider.getRealmResource();
 
@@ -175,8 +183,10 @@ public class ProfileKeycloakServiceImpl implements IProfileKeycloakService {
             log.info("Perfil '{}' eliminado correctamente", roleName);
         } catch (ClientErrorException cee) {
             int status = cee.getResponse() != null ? cee.getResponse().getStatus() : 500;
-            log.error("Error de Keycloak al eliminar perfil ({}). Status={} - {}", roleName, status, cee.getMessage(), cee);
-            if (status == 404) throw new ResourceNotFoundException("No se encontró el perfil");
+            log.error("Error de Keycloak al eliminar perfil ({}). Status={} - {}", roleName, status, cee.getMessage(),
+                    cee);
+            if (status == 404)
+                throw new ResourceNotFoundException("No se encontró el perfil");
             throw new RuntimeException("Error de Keycloak (" + status + "): " + cee.getMessage(), cee);
         }
     }
@@ -184,7 +194,8 @@ public class ProfileKeycloakServiceImpl implements IProfileKeycloakService {
     /**
      * Actualiza un perfil existente en Keycloak.
      * <p>
-     * Permite cambiar nombre y descripción, verificando que el nuevo nombre no esté duplicado.
+     * Permite cambiar nombre y descripción, verificando que el nuevo nombre no esté
+     * duplicado.
      * </p>
      *
      * @param profileId  identificador del perfil a actualizar.
@@ -194,6 +205,7 @@ public class ProfileKeycloakServiceImpl implements IProfileKeycloakService {
      * @throws ResourceNotFoundException si el perfil no existe.
      */
     @Override
+    @Auditable(operationType = OperationType.UPDATE, affectedTable = "PROFILE")
     public ProfileDTO updateProfile(String profileId, ProfileDTO profileDTO) {
         RealmResource realm = keycloakProvider.getRealmResource();
 
@@ -228,9 +240,12 @@ public class ProfileKeycloakServiceImpl implements IProfileKeycloakService {
                     .build();
         } catch (ClientErrorException cee) {
             int status = cee.getResponse() != null ? cee.getResponse().getStatus() : 500;
-            log.error("Error de Keycloak al actualizar perfil ({} -> {}). Status={} - {}", currentRoleName, newRoleName, status, cee.getMessage(), cee);
-            if (status == 404) throw new ResourceNotFoundException("No se encontró el perfil");
-            if (status == 409) throw new ConflictException("El nombre del perfil ya existe");
+            log.error("Error de Keycloak al actualizar perfil ({} -> {}). Status={} - {}", currentRoleName, newRoleName,
+                    status, cee.getMessage(), cee);
+            if (status == 404)
+                throw new ResourceNotFoundException("No se encontró el perfil");
+            if (status == 409)
+                throw new ConflictException("El nombre del perfil ya existe");
             throw new RuntimeException("Error de Keycloak (" + status + "): " + cee.getMessage(), cee);
         }
     }

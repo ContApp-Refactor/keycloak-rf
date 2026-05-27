@@ -28,12 +28,15 @@ public class PasswordRecoveryServiceImpl implements IPasswordRecoveryService {
   private final IMailService mail;
   private final KeycloakProvider kc;
 
-  @Value("${app.recovery.ttl-seconds:3600}") private long ttl;
-  @Value("${app.recovery.base-url}") private String baseUrl;
-  @Value("${app.jwt.recovery-prefix:pwd:reset:}") private String prefix;
+  @Value("${app.recovery.ttl-seconds:3600}")
+  private long ttl;
+  @Value("${app.recovery.base-url}")
+  private String baseUrl;
+  @Value("${app.jwt.recovery-prefix:pwd:reset:}")
+  private String prefix;
 
-  private static final Pattern STRONG_PASSWORD_PATTERN =
-          Pattern.compile("^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[@$!%*#?&])[A-Za-z\\d@$!%*#?&]{8,20}$");
+  private static final Pattern STRONG_PASSWORD_PATTERN = Pattern
+      .compile("^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[@$!%*#?&])[A-Za-z\\d@$!%*#?&]{8,20}$");
 
   @Override
   public void startRecovery(String email) {
@@ -47,9 +50,9 @@ public class PasswordRecoveryServiceImpl implements IPasswordRecoveryService {
       String token = UUID.randomUUID().toString();
       redis.opsForValue().set(prefix + token, user.getId(), Duration.ofSeconds(ttl));
       String link = baseUrl + "?token=" + URLEncoder.encode(token, StandardCharsets.UTF_8);
-      
+
       mail.send(email, "Recupera tu contraseña", "Haz clic en el siguiente enlace: " + link);
-      
+
       log.info("Enlace de recuperación de contraseña enviado a: {}", email);
     } catch (ResourceNotFoundException e) {
       // Por seguridad, no revelamos si el email existe o no
@@ -73,26 +76,29 @@ public class PasswordRecoveryServiceImpl implements IPasswordRecoveryService {
       if (newPassword == null || newPassword.isBlank()) {
         throw new UserException("La nueva contraseña es obligatoria", 400);
       }
-      
+
       if (newPassword.length() < 8 || newPassword.length() > 20) {
         throw new UserException("La contraseña debe tener entre 8 y 20 caracteres", 400);
       }
-      
+
       if (!STRONG_PASSWORD_PATTERN.matcher(newPassword).matches()) {
-        throw new UserException("La contraseña debe contener al menos una mayúscula, una minúscula, un número y un carácter especial (@$!%*#?&)", 400);
+        throw new UserException(
+            "La contraseña debe contener al menos una mayúscula, una minúscula, un número y un carácter especial (@$!%*#?&)",
+            400);
       }
 
       String key = prefix + token;
       String userId = redis.opsForValue().get(key);
-      
+
       if (userId == null) {
         log.warn("Intento de reseteo con token inválido o expirado");
-        throw new UserException("El enlace de recuperación ha expirado o es inválido. Por favor solicita uno nuevo.", 400);
+        throw new UserException("El enlace de recuperación ha expirado o es inválido. Por favor solicita uno nuevo.",
+            400);
       }
-      
+
       kc.resetUserPassword(userId, newPassword);
       redis.delete(key);
-      
+
       log.info("Contraseña reseteada exitosamente para usuario ID: {}", userId);
     } catch (UserException e) {
       throw e; // Re-lanzar excepciones ya manejadas

@@ -12,6 +12,8 @@ import org.springframework.http.*;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.security.keycloak.audit.annotation.Auditable;
+import com.security.keycloak.audit.annotation.OperationType;
 import com.security.keycloak.controller.exception.ConflictException;
 import com.security.keycloak.controller.exception.ResourceNotFoundException;
 import com.security.keycloak.service.IPermissionKeycloakService;
@@ -56,7 +58,8 @@ public class PermissionKeycloakServiceImpl implements IPermissionKeycloakService
     private final KeycloakProvider keycloakProvider;
 
     /**
-     * Inicializa las URLs base utilizadas para invocar la API de administración de Keycloak.
+     * Inicializa las URLs base utilizadas para invocar la API de administración de
+     * Keycloak.
      * <p>
      * Se ejecuta automáticamente después de la inyección de dependencias.
      * </p>
@@ -71,13 +74,15 @@ public class PermissionKeycloakServiceImpl implements IPermissionKeycloakService
         this.PERMISSION_BY_ID_URL_TEMPLATE = RESOURCE_SERVER_URL + "/permission/%s";
         this.ROLES_URL = ADMIN_REALM_URL + "/roles";
         this.ROLE_BY_NAME_URL = ROLES_URL + "/%s";
-    }    
+    }
 
     /**
-     * Obtiene todos los permisos del servidor de recursos, excluyendo el permiso por defecto.
+     * Obtiene todos los permisos del servidor de recursos, excluyendo el permiso
+     * por defecto.
      *
      * @return lista de nombres de permisos.
-     * @throws RuntimeException si ocurre un error al consultar o procesar la respuesta.
+     * @throws RuntimeException si ocurre un error al consultar o procesar la
+     *                          respuesta.
      */
     @Override
     public List<String> findAllPermissions() {
@@ -92,8 +97,7 @@ public class PermissionKeycloakServiceImpl implements IPermissionKeycloakService
                     PERMISSIONS_LIST_URL,
                     HttpMethod.GET,
                     entity,
-                    String.class
-            );
+                    String.class);
 
             if (response.getStatusCode() == HttpStatus.OK && response.getBody() != null) {
                 JsonNode permissionsArray = objectMapper.readTree(response.getBody());
@@ -124,13 +128,16 @@ public class PermissionKeycloakServiceImpl implements IPermissionKeycloakService
      * Crea (si no existe) una política de rol y la asocia a los permisos indicados.
      *
      * @param permissions lista de nombres de permisos a actualizar.
-     * @param roleName nombre del rol que se usará para crear/nombrar la política.
+     * @param roleName    nombre del rol que se usará para crear/nombrar la
+     *                    política.
      * @return {@code true} si el proceso finaliza sin errores.
      * @throws ResourceNotFoundException si no se encuentra el rol o un permiso.
-     * @throws ConflictException si Keycloak reporta conflicto al actualizar.
-     * @throws RuntimeException ante otros errores HTTP o internos.
+     * @throws ConflictException         si Keycloak reporta conflicto al
+     *                                   actualizar.
+     * @throws RuntimeException          ante otros errores HTTP o internos.
      */
     @Override
+    @Auditable(operationType = OperationType.CREATE, affectedTable = "PERMISSION")
     public boolean addPolicytoPermissions(List<String> permissions, String roleName) {
         String newPolicyName = roleName + " Policy";
 
@@ -154,9 +161,12 @@ public class PermissionKeycloakServiceImpl implements IPermissionKeycloakService
                 throw ex;
             } catch (org.springframework.web.client.HttpClientErrorException e) {
                 int sc = e.getStatusCode().value();
-                log.error("HTTP {} al actualizar permiso '{}' con política '{}': {}", sc, permissionName, newPolicyName, e.getResponseBodyAsString());
-                if (sc == 404) throw new ResourceNotFoundException("Permiso no encontrado: " + permissionName);
-                if (sc == 409) throw new ConflictException("Conflicto al actualizar permiso: " + permissionName);
+                log.error("HTTP {} al actualizar permiso '{}' con política '{}': {}", sc, permissionName, newPolicyName,
+                        e.getResponseBodyAsString());
+                if (sc == 404)
+                    throw new ResourceNotFoundException("Permiso no encontrado: " + permissionName);
+                if (sc == 409)
+                    throw new ConflictException("Conflicto al actualizar permiso: " + permissionName);
                 throw new RuntimeException("Error HTTP al actualizar permiso", e);
             } catch (Exception e) {
                 log.error("Error al actualizar el permiso '{}' con la política '{}': {}",
@@ -169,10 +179,12 @@ public class PermissionKeycloakServiceImpl implements IPermissionKeycloakService
     }
 
     /**
-     * Construye un mapa de roles y sus permisos asociados leyendo la configuración del
+     * Construye un mapa de roles y sus permisos asociados leyendo la configuración
+     * del
      * resource-server del cliente configurado.
      *
-     * @return mapa donde la clave es el nombre del rol y el valor es la lista de permisos.
+     * @return mapa donde la clave es el nombre del rol y el valor es la lista de
+     *         permisos.
      * @throws RuntimeException si ocurre un error durante el proceso.
      */
     @Override
@@ -257,13 +269,15 @@ public class PermissionKeycloakServiceImpl implements IPermissionKeycloakService
      * y elimina los que ya no deben estar vinculados.
      *
      * @param newPermissions lista completa de permisos objetivo para el rol.
-     * @param roleName nombre del rol a actualizar.
+     * @param roleName       nombre del rol a actualizar.
      * @return {@code true} si el proceso finaliza sin errores.
      * @throws ResourceNotFoundException si no existe el rol o un permiso.
-     * @throws ConflictException si Keycloak reporta conflicto en la actualización.
-     * @throws RuntimeException para otros errores HTTP o internos.
+     * @throws ConflictException         si Keycloak reporta conflicto en la
+     *                                   actualización.
+     * @throws RuntimeException          para otros errores HTTP o internos.
      */
     @Override
+    @Auditable(operationType = OperationType.CREATE, affectedTable = "PERMISSION")
     public boolean updatePermissionsForRole(List<String> newPermissions, String roleName) {
         String roleId = findRoleIdByName(roleName);
         if (roleId == null) {
@@ -297,9 +311,12 @@ public class PermissionKeycloakServiceImpl implements IPermissionKeycloakService
                     throw ex;
                 } catch (org.springframework.web.client.HttpClientErrorException e) {
                     int sc = e.getStatusCode().value();
-                    log.error("HTTP {} al asignar permiso {} a {}: {}", sc, permissionName, roleName, e.getResponseBodyAsString());
-                    if (sc == 404) throw new ResourceNotFoundException("Permiso no encontrado: " + permissionName);
-                    if (sc == 409) throw new ConflictException("Conflicto al asignar permiso: " + permissionName);
+                    log.error("HTTP {} al asignar permiso {} a {}: {}", sc, permissionName, roleName,
+                            e.getResponseBodyAsString());
+                    if (sc == 404)
+                        throw new ResourceNotFoundException("Permiso no encontrado: " + permissionName);
+                    if (sc == 409)
+                        throw new ConflictException("Conflicto al asignar permiso: " + permissionName);
                     throw new RuntimeException("Error HTTP al asignar permiso", e);
                 } catch (Exception e) {
                     log.error("Error al asignar permiso {} a {}: {}", permissionName, roleName, e.getMessage());
@@ -318,9 +335,12 @@ public class PermissionKeycloakServiceImpl implements IPermissionKeycloakService
                     throw ex;
                 } catch (org.springframework.web.client.HttpClientErrorException e) {
                     int sc = e.getStatusCode().value();
-                    log.error("HTTP {} al quitar permiso {} de {}: {}", sc, permissionName, roleName, e.getResponseBodyAsString());
-                    if (sc == 404) throw new ResourceNotFoundException("Permiso no encontrado: " + permissionName);
-                    if (sc == 409) throw new ConflictException("Conflicto al quitar permiso: " + permissionName);
+                    log.error("HTTP {} al quitar permiso {} de {}: {}", sc, permissionName, roleName,
+                            e.getResponseBodyAsString());
+                    if (sc == 404)
+                        throw new ResourceNotFoundException("Permiso no encontrado: " + permissionName);
+                    if (sc == 409)
+                        throw new ConflictException("Conflicto al quitar permiso: " + permissionName);
                     throw new RuntimeException("Error HTTP al quitar permiso", e);
                 } catch (Exception e) {
                     log.error("Error al quitar permiso {} de {}: {}", permissionName, roleName, e.getMessage());
@@ -342,10 +362,11 @@ public class PermissionKeycloakServiceImpl implements IPermissionKeycloakService
      * Actualiza un permiso con el listado de políticas aplicables.
      *
      * @param permissionName nombre del permiso a actualizar.
-     * @param policies lista de nombres de políticas a aplicar.
+     * @param policies       lista de nombres de políticas a aplicar.
      * @throws ResourceNotFoundException si el permiso no existe.
-     * @throws ConflictException si ocurre un conflicto al actualizar.
-     * @throws Exception para errores de serialización o HTTP no controlados.
+     * @throws ConflictException         si ocurre un conflicto al actualizar.
+     * @throws Exception                 para errores de serialización o HTTP no
+     *                                   controlados.
      */
     private void updatePermissionWithPolicies(String permissionName, List<String> policies) throws Exception {
         String permissionId = findPermissionIdByName(permissionName);
@@ -361,7 +382,8 @@ public class PermissionKeycloakServiceImpl implements IPermissionKeycloakService
         ResponseEntity<String> getResp = restTemplate.exchange(permUrl, HttpMethod.GET, getEntity, String.class);
 
         if (getResp.getStatusCode() != HttpStatus.OK || getResp.getBody() == null) {
-            log.error("No se pudo leer la permission '{}' (id={}). Status={}", permissionName, permissionId, getResp.getStatusCode());
+            log.error("No se pudo leer la permission '{}' (id={}). Status={}", permissionName, permissionId,
+                    getResp.getStatusCode());
             throw new RuntimeException("No se pudo leer la permission antes de actualizar");
         }
 
@@ -381,12 +403,16 @@ public class PermissionKeycloakServiceImpl implements IPermissionKeycloakService
 
         try {
             restTemplate.exchange(permUrl, HttpMethod.PUT, putEntity, Void.class);
-            log.info("Permission '{}' actualizada. policies={}, decisionStrategy=AFFIRMATIVE", permissionName, policies.size());
+            log.info("Permission '{}' actualizada. policies={}, decisionStrategy=AFFIRMATIVE", permissionName,
+                    policies.size());
         } catch (org.springframework.web.client.HttpClientErrorException e) {
             int code = e.getStatusCode().value();
-            log.error("Error HTTP al actualizar permiso '{}': {} - {}", permissionName, code, e.getResponseBodyAsString());
-            if (code == 404) throw new ResourceNotFoundException("Permiso no encontrado: " + permissionName);
-            if (code == 409) throw new ConflictException("Conflicto al actualizar permiso: " + permissionName);
+            log.error("Error HTTP al actualizar permiso '{}': {} - {}", permissionName, code,
+                    e.getResponseBodyAsString());
+            if (code == 404)
+                throw new ResourceNotFoundException("Permiso no encontrado: " + permissionName);
+            if (code == 409)
+                throw new ConflictException("Conflicto al actualizar permiso: " + permissionName);
             throw e;
         }
     }
@@ -396,7 +422,8 @@ public class PermissionKeycloakServiceImpl implements IPermissionKeycloakService
      *
      * @param permissionName nombre del permiso.
      * @return lista de nombres de políticas asociadas (posiblemente vacía).
-     * @throws RuntimeException si ocurre un error al consultar o procesar la respuesta.
+     * @throws RuntimeException si ocurre un error al consultar o procesar la
+     *                          respuesta.
      */
     public List<String> getPoliciesByPermissionName(String permissionName) {
         List<String> policies = new ArrayList<>();
@@ -423,7 +450,7 @@ public class PermissionKeycloakServiceImpl implements IPermissionKeycloakService
                             JsonNode configNode = policy.path("config");
                             if (configNode == null || configNode.isMissingNode()) {
                                 log.info("El permiso '{}' no tiene configuración de políticas", permissionName);
-                                return policies; 
+                                return policies;
                             }
 
                             String applyPoliciesJson = configNode.path("applyPolicies").asText("[]");
@@ -434,7 +461,7 @@ public class PermissionKeycloakServiceImpl implements IPermissionKeycloakService
                                     policies.add(policyName.asText());
                                 }
                             }
-                            return policies; 
+                            return policies;
                         }
                     }
                 }
@@ -466,8 +493,7 @@ public class PermissionKeycloakServiceImpl implements IPermissionKeycloakService
                     PERMISSIONS_LIST_URL,
                     HttpMethod.GET,
                     entity,
-                    String.class
-            );
+                    String.class);
 
             if (response.getStatusCode() == HttpStatus.OK && response.getBody() != null) {
                 JsonNode root = objectMapper.readTree(response.getBody());
@@ -493,8 +519,10 @@ public class PermissionKeycloakServiceImpl implements IPermissionKeycloakService
      * Crea una política de tipo rol para el nombre de rol indicado (si no existe).
      *
      * @param roleName nombre del rol.
-     * @return {@code true} si la política existe o se crea correctamente; {@code false} si no se encuentra el rol.
-     * @throws RuntimeException ante errores HTTP distintos de 409 o errores internos.
+     * @return {@code true} si la política existe o se crea correctamente;
+     *         {@code false} si no se encuentra el rol.
+     * @throws RuntimeException ante errores HTTP distintos de 409 o errores
+     *                          internos.
      */
     public boolean createRolePolicy(String roleName) {
         String policyName = roleName + " Policy";
@@ -529,8 +557,7 @@ public class PermissionKeycloakServiceImpl implements IPermissionKeycloakService
             ResponseEntity<Void> response = restTemplate.postForEntity(
                     POLICY_ROLE_URL,
                     entity,
-                    Void.class
-            );
+                    Void.class);
 
             if (response.getStatusCode() == HttpStatus.CREATED) {
                 log.info("Política de rol '{}' creada exitosamente", policyName);
@@ -546,7 +573,7 @@ public class PermissionKeycloakServiceImpl implements IPermissionKeycloakService
             int sc = e.getStatusCode().value();
             if (sc == 409) {
                 log.info("La política de rol '{}' ya existía (409). Se continúa.", policyName);
-                return true; 
+                return true;
             }
             log.error("Error HTTP al crear política de rol '{}': {}", policyName, e.getResponseBodyAsString());
             throw new RuntimeException("Error HTTP al crear política de rol", e);
@@ -561,7 +588,8 @@ public class PermissionKeycloakServiceImpl implements IPermissionKeycloakService
      *
      * @param roleName nombre del rol.
      * @return ID del rol o {@code null} si no se encuentra.
-     * @throws RuntimeException si ocurre un error HTTP distinto de 404 o un error interno.
+     * @throws RuntimeException si ocurre un error HTTP distinto de 404 o un error
+     *                          interno.
      */
     private String findRoleIdByName(String roleName) {
         try {
@@ -596,12 +624,14 @@ public class PermissionKeycloakServiceImpl implements IPermissionKeycloakService
             throw new RuntimeException("Error interno al buscar rol", e);
         }
     }
-    
+
     /**
      * Desvincula todas las referencias de políticas asociadas a un rol específico.
      *
-     * @param roleName nombre del rol cuyas referencias de políticas serán desvinculadas.
-     * @return {@code true} si la operación fue exitosa, {@code false} en caso contrario.
+     * @param roleName nombre del rol cuyas referencias de políticas serán
+     *                 desvinculadas.
+     * @return {@code true} si la operación fue exitosa, {@code false} en caso
+     *         contrario.
      */
     @Override
     public boolean detachPolicyReferencesForRole(String roleName) {
@@ -612,7 +642,8 @@ public class PermissionKeycloakServiceImpl implements IPermissionKeycloakService
         for (String permissionName : allPermissions) {
             try {
                 List<String> currentPolicies = getPoliciesByPermissionName(permissionName);
-                if (currentPolicies.isEmpty()) continue;
+                if (currentPolicies.isEmpty())
+                    continue;
 
                 boolean removed = currentPolicies.removeIf(p -> policyName.equals(p));
                 if (removed) {
@@ -624,7 +655,8 @@ public class PermissionKeycloakServiceImpl implements IPermissionKeycloakService
             } catch (ConflictException ex) {
                 throw ex;
             } catch (Exception ex) {
-                log.error("Error al quitar policy '{}' de permission '{}': {}", policyName, permissionName, ex.getMessage(), ex);
+                log.error("Error al quitar policy '{}' de permission '{}': {}", policyName, permissionName,
+                        ex.getMessage(), ex);
                 throw new RuntimeException("Error interno al desasignar policy de permissions", ex);
             }
         }
@@ -632,7 +664,8 @@ public class PermissionKeycloakServiceImpl implements IPermissionKeycloakService
     }
 
     /**
-     * Crea cabeceras HTTP con autenticación Bearer a partir del token de administrador.
+     * Crea cabeceras HTTP con autenticación Bearer a partir del token de
+     * administrador.
      *
      * @return cabeceras con autorización.
      */

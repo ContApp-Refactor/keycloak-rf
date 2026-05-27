@@ -66,6 +66,7 @@ keycloak:
 
 server:
   port: ${PORT:0}
+  forward-headers-strategy: framework
 
 eureka:
   instance:

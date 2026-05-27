@@ -1,12 +1,12 @@
-package com.security.keycloak.event;
+package com.security.keycloak.audit.event;
 
 import org.springframework.context.event.EventListener;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
 
-import com.security.keycloak.message.dto.SessionEventDTO;
-import com.security.keycloak.message.service.ISessionEventPublisher;
-import com.security.keycloak.message.util.SessionEventBuilder;
+import com.security.keycloak.audit.message.dto.SessionEventDTO;
+import com.security.keycloak.audit.message.service.ISessionEventPublisher;
+import com.security.keycloak.audit.message.util.SessionEventBuilder;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

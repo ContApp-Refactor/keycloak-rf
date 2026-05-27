@@ -1,6 +1,7 @@
-package com.security.keycloak.message.dto;
+package com.security.keycloak.audit.message.dto;
 
 import java.time.Instant;
+import java.util.List;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 
@@ -22,20 +23,19 @@ public class SessionEventDTO {
 
     @JsonProperty("user_id")
     private String userId;
-    
+
     @JsonProperty("user_name")
     private String userName;
-    
+
     @JsonProperty("user_role")
-    private String userRole; 
-    
+    private List<String> userRole;
+
     @JsonProperty("action")
     private String action;
-    
+
     @JsonProperty("action_at")
     private Instant actionAt;
-    
+
     @JsonProperty("ip_address")
     private String ipAddress;
 }
-
