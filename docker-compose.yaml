@@ -1,0 +1,22 @@
+services:
+  keycloak-rf:
+    image: jeserna/keycloak-rf:v0.0.6
+    container_name: keycloak-rf
+    env_file:
+      - ${SECRETS_DIR:-/opt/secrets}/keycloak-configs.env
+      - ${SECRETS_DIR:-/opt/secrets}/keycloak-secrets.env
+      - ${SECRETS_DIR:-/opt/secrets}/common-configs.env
+
+    restart: unless-stopped
+    networks:
+      - dokploy-network
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:8080/actuator/health/liveness"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+      start_period: 30s
+      start_interval: 10s
+networks:
+  dokploy-network:
+    external: true
