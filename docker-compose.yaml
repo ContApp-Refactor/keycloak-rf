@@ -6,6 +6,7 @@ services:
       - ${SECRETS_DIR:-/opt/secrets}/keycloak-configs.env
       - ${SECRETS_DIR:-/opt/secrets}/keycloak-secrets.env
       - ${SECRETS_DIR:-/opt/secrets}/common-configs.env
+      - ${SECRETS_DIR:-/opt/secrets}/rabbit-mq-secrets.env
 
     restart: unless-stopped
     networks:
