@@ -1,13 +1,12 @@
 services:
   keycloak-rf:
-    image: jeserna/keycloak-rf:v0.0.104
+    image: jeserna/keycloak-rf:v0.0.108
     container_name: keycloak-rf
     env_file:
       - ${SECRETS_DIR:-/opt/secrets}/keycloak-configs.env
       - ${SECRETS_DIR:-/opt/secrets}/keycloak-secrets.env
       - ${SECRETS_DIR:-/opt/secrets}/common-configs.env
       - ${SECRETS_DIR:-/opt/secrets}/rabbit-mq-secrets.env
-
     restart: unless-stopped
     networks:
       - dokploy-network
